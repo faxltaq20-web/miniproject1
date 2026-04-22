@@ -48,29 +48,29 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORE-01 | Phase 0 | Pending |
-| CORE-02 | Phase 0 | Pending |
-| CORE-03 | Phase 0 | Pending |
-| CORE-04 | Phase 0 | Pending |
-| AI-01 | Phase 0 | Pending |
-| AI-02 | Phase 0 | Pending |
-| AI-03 | Phase 0 | Pending |
-| AI-04 | Phase 0 | Pending |
-| AI-05 | Phase 0 | Pending |
-| AI-06 | Phase 0 | Pending |
-| AI-07 | Phase 0 | Pending |
-| CITE-01 | Phase 0 | Pending |
-| CITE-02 | Phase 0 | Pending |
-| CITE-03 | Phase 0 | Pending |
-| REP-01 | Phase 0 | Pending |
-| REP-02 | Phase 0 | Pending |
-| REP-03 | Phase 0 | Pending |
-| REP-04 | Phase 0 | Pending |
+| CORE-01 | Phase 1 | Pending |
+| CORE-02 | Phase 1 | Pending |
+| CORE-03 | Phase 1 | Pending |
+| CORE-04 | Phase 1 | Pending |
+| AI-01 | Phase 2 | Pending |
+| AI-02 | Phase 2 | Pending |
+| AI-03 | Phase 2 | Pending |
+| AI-04 | Phase 2 | Pending |
+| AI-05 | Phase 2 | Pending |
+| AI-06 | Phase 2 | Pending |
+| AI-07 | Phase 2 | Pending |
+| CITE-01 | Phase 3 | Pending |
+| CITE-02 | Phase 3 | Pending |
+| CITE-03 | Phase 3 | Pending |
+| REP-01 | Phase 3 | Pending |
+| REP-02 | Phase 4 | Pending |
+| REP-03 | Phase 4 | Pending |
+| REP-04 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-22*
