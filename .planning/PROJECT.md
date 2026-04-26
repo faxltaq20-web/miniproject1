@@ -46,6 +46,10 @@ Give professors an instant, objective review instrument — upload a paper and g
 - **Primary users:** University professors reviewing student research papers before journal/conference submission
 - **Secondary users:** Students self-checking their own work before submitting to their professor
 - Report tone must be formal and clinical — a review instrument for professors, not coaching feedback for students
+- **Team:** 3 people — work divided by module ownership, combined via GitHub
+  - P1: Backend core (`main.py`, `pdf_parser.py`, `section_detector.py`)
+  - P2: AI engine + scoring (`gemini_analyzer.py`, `scoring.py`)
+  - P3: Citations + report + frontend (`citation_checker.py`, `report_generator.py`, `frontend/`)
 - All external APIs are free tier (Gemini, Semantic Scholar, CrossRef)
 - Gemini 2.5 Flash is the primary AI model (free tier: 250 RPD, 10 RPM), with Gemini 2.5 Flash-Lite as fallback
 - Timeline: ~1.5 months to completion
