@@ -2,11 +2,11 @@
 
 ## What This Is
 
-ResearchSense is an AI-powered academic paper analysis and error detection system. Students upload a research paper PDF, and the system automatically evaluates it across 8 quality dimensions — grammar, readability, abstract quality, structure, methodology, logic, conclusion, and citations — then generates a structured PDF report with a confidence score (0–100) and a letter grade. This is a university mini-project graded by an external professor.
+ResearchSense is an AI-powered academic paper analysis and error detection system. Professors and students upload a research paper PDF, and the system automatically evaluates it across 8 quality dimensions — grammar, readability, abstract quality, structure, methodology, logic, conclusion, and citations — then generates a structured PDF report with a confidence score (0–100) and a letter grade. The primary user is a **university professor** working with students on research papers — the report acts as a formal review instrument the professor can use to assess readiness for submission. Students are secondary users who self-check their own work. This is a university mini-project graded by an external professor.
 
 ## Core Value
 
-Upload a research paper PDF and instantly get a detailed, multi-dimensional quality analysis with actionable feedback — so students know exactly what to fix before submitting to a journal or professor.
+Give professors an instant, objective review instrument — upload a paper and get a structured multi-dimensional quality report that identifies exactly what is missing or weak, so professors can make informed decisions on whether students are ready to submit.
 
 ## Requirements
 
@@ -30,6 +30,7 @@ Upload a research paper PDF and instantly get a detailed, multi-dimensional qual
 - [ ] Citation verification via Semantic Scholar API
 - [ ] DOI validation via CrossRef API
 - [ ] Rate limit handling with retry logic for all external APIs
+- [ ] Graceful error handling for invalid PDFs, empty sections, and API failures
 
 ### Out of Scope
 
@@ -42,10 +43,11 @@ Upload a research paper PDF and instantly get a detailed, multi-dimensional qual
 ## Context
 
 - University mini-project guided by professor, graded by external examiner from another university
-- Target users: university students analyzing research papers before submission
-- Students want to know: "Will my paper get approved?" — the scoring and feedback should frame results in terms of approval readiness
+- **Primary users:** University professors reviewing student research papers before journal/conference submission
+- **Secondary users:** Students self-checking their own work before submitting to their professor
+- Report tone must be formal and clinical — a review instrument for professors, not coaching feedback for students
 - All external APIs are free tier (Gemini, Semantic Scholar, CrossRef)
-- Gemini 2.5 Flash is the primary AI model (free tier: 250 RPD, 10 RPM)
+- Gemini 2.5 Flash is the primary AI model (free tier: 250 RPD, 10 RPM), with Gemini 2.5 Flash-Lite as fallback
 - Timeline: ~1.5 months to completion
 - Detailed technical research already completed (ResearchSense_Research.md)
 - Python ecosystem throughout — FastAPI, PyMuPDF, ReportLab, google-generativeai
@@ -70,6 +72,7 @@ Upload a research paper PDF and instantly get a detailed, multi-dimensional qual
 | Simple HTML/CSS/JS frontend | Sufficient for university demo, no framework complexity | — Pending |
 | ReportLab for PDF reports | Free, Python-native, professional output | — Pending |
 | 8-layer weighted scoring (specific weights in research doc) | Research-backed criteria from peer review standards | — Pending |
+| pymupdf4llm for text extraction | Handles multi-column academic layouts, outputs markdown for better section detection | — Pending |
 
 ## Evolution
 
@@ -89,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-21 after initialization*
+*Last updated: 2026-04-26 after Phase 1 discussion — primary user updated to professors*
