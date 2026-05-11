@@ -10,20 +10,35 @@
 
 ### Core Flow
 ```
-User uploads PDF
-      ↑
-Text Extraction (PyMuPDF basic get_text())
-      ↓
-Section Detection (Regex-only)
-      ↓
-8-Layer Analysis (Gemini API × 7 layers + Citation APIs × 1 layer)
-      ↓
-Weighted Scoring Algorithm (custom Python)
-      ↓
-PDF Report Generation (ReportLab)
-      ↓
-Display in Web UI
+User Uploads PDF
+        ↓
+FastAPI Backend
+        ↓
+PyMuPDF Text Extraction
+        ↓
+Regex Section Detection
+        ↓
+Single Gemini Prompt → Multi-layer Analysis
+        ↓
+Citation Check (Regex + CrossRef)
+        ↓
+Weighted Score Calculation
+        ↓
+ReportLab PDF Generation
+        ↓
+Frontend Display + Download Report
 ```
+
+### Removed Features
+
+* **OCR / scanned PDF support** — Heavy implementation and unnecessary for the prototype.
+* **pymupdf4llm** — Basic PyMuPDF extraction is sufficient.
+* **Gemini fallback for section splitting** — Regex already handles standard academic headings.
+* **Multi-model orchestration** — Adds complexity without significant benefits.
+* **Strict paper rejection rules** — Real research papers often use inconsistent section naming.
+* **Advanced citation verification APIs** — Introduces too many external dependencies for an MVP.
+* **Cloud deployment setup** — Local demo execution is enough for now.
+* **Database integration** — The current system only requires temporary analysis processing.
 
 ### Primary Users
 - **Professors** (primary) — use the report as a formal review instrument to assess if a student's paper is ready for journal/conference submission
