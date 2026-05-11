@@ -31,6 +31,26 @@ Person 1 builds the entire backend foundation for ResearchSense: project scaffol
 
 ---
 
+## Processing Pipeline
+
+```
+User uploads PDF via POST /analyze
+        ↓
+[main.py] Validate file is .pdf
+        ↓
+[pdf_parser.py] Extract text using PyMuPDF get_text()
+        ↓
+    Text < 100 chars? → Return 422 error (not a text-based PDF)
+        ↓
+[section_detector.py] Regex-only section detection
+        ↓
+    Missing key sections? → Add soft warnings (but proceed)
+        ↓
+Return JSON: { filename, sections, section_count, warnings }
+```
+
+
+
 ## Tasks
 
 ### Task 1: Project Scaffolding & Dependencies
