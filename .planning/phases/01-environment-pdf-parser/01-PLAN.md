@@ -24,7 +24,7 @@ autonomous: true
 
 ## Objective
 
-Person 1 builds the entire backend foundation for ResearchSense: project scaffolding, FastAPI skeleton with the `/analyze` endpoint, PDF text extraction using pymupdf4llm, and section detection with regex + Gemini fallback. This is the core pipeline that all other team members will consume.
+Person 1 builds the entire backend foundation for ResearchSense: project scaffolding, FastAPI skeleton with the `/analyze` endpoint, PDF text extraction using basic PyMuPDF `get_text()`, and regex-only section detection. This is the core pipeline that all other team members will consume.
 
 ## Owner
 
@@ -49,7 +49,6 @@ Create the following files in the project root:
 ```
 google-generativeai
 pymupdf
-pymupdf4llm
 fastapi
 uvicorn
 python-multipart
@@ -62,8 +61,7 @@ python-dotenv
 **.env.example:**
 ```
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL_PRIMARY=gemini-2.5-flash
-GEMINI_MODEL_FALLBACK=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-2.5-flash
 CONTACT_EMAIL=your_email@example.com
 ```
 
@@ -73,8 +71,8 @@ Create a personal `.env` file (not committed) with your actual `GEMINI_API_KEY`.
 </action>
 
 <acceptance_criteria>
-- `requirements.txt` exists and contains all 10 packages listed above
-- `.env.example` exists and contains `GEMINI_API_KEY=`, `GEMINI_MODEL_PRIMARY=`, `GEMINI_MODEL_FALLBACK=`, `CONTACT_EMAIL=`
+- `requirements.txt` exists and contains all 9 packages listed above (`pymupdf4llm` is NOT included)
+- `.env.example` exists and contains `GEMINI_API_KEY=`, `GEMINI_MODEL=`, `CONTACT_EMAIL=`
 - `.gitignore` contains `.env`
 - Running `pip install -r requirements.txt` in a fresh venv succeeds without errors
 </acceptance_criteria>
@@ -111,21 +109,27 @@ Create `main.py` with:
    - Saves to temp file
    - Calls `pdf_parser.extract_text(tmp_path)` to get raw text
    - Calls `section_detector.detect_sections(text)` to get sections dict
-   - Checks minimum sections (Abstract + Methodology + Conclusion) — if any missing, returns 422 with formal rejection:
+   - If extraction returns empty text, returns 422 with:
      ```python
      {
-         "error": "Structural validation failed",
-         "missing_sections": ["methodology"],
-         "message": "Structural validation failed: The following required sections were not detected: [Methodology]. Papers must contain Abstract, Methodology, and Conclusion to proceed with analysis.",
-         "note": "Please ensure your paper follows standard academic structure. A sample format guide will be available in a future update."
+         "error": "Text extraction failed",
+         "message": "Could not extract text from this PDF. Please ensure it is a text-based PDF."
      }
      ```
-   - On success, returns sections JSON:
+   - **No strict section rejection** — proceed with whatever sections were detected; add a soft warning if any key sections are missing:
+     ```python
+     warnings = []
+     for s in ["abstract", "methodology", "conclusion"]:
+         if not sections.get(s, "").strip():
+             warnings.append(s)
+     ```
+   - On success, returns:
      ```python
      {
          "filename": file.filename,
          "sections": sections,
-         "section_count": len([v for v in sections.values() if v.strip()])
+         "section_count": len([v for v in sections.values() if v.strip()]),
+         "warnings": warnings  # list of section names not detected
      }
      ```
    - Cleans up temp file in `finally` block
@@ -141,8 +145,8 @@ Create `main.py` with:
 - `main.py` contains `@app.get("/")` health check returning `{"status": "ResearchSense API is running"}`
 - `main.py` contains `@app.post("/analyze")` endpoint
 - `main.py` validates `.pdf` extension and returns 400 for non-PDF
-- `main.py` checks for Abstract, Methodology, Conclusion — returns 422 with `"Structural validation failed"` if any missing
-- `main.py` returns sections dict on success with keys: `filename`, `sections`, `section_count`
+- `main.py` returns a **soft warning** (not a hard rejection) if key sections are missing — analysis still proceeds
+- `main.py` returns sections dict on success with keys: `filename`, `sections`, `section_count`, `warnings`
 - `main.py` cleans up temp file in `finally` block
 - Running `uvicorn main:app --reload` starts the server on port 8000
 - `GET http://localhost:8000/` returns `{"status": "ResearchSense API is running"}`
@@ -161,39 +165,39 @@ Create `main.py` with:
 Create `pdf_parser.py` with:
 
 1. **`extract_text(pdf_path: str) -> str`** function:
-   - **Primary method:** Use `pymupdf4llm.to_markdown(pdf_path)` — this preserves heading structure for better section detection
-   - **Fallback:** If pymupdf4llm raises any exception, fall back to basic PyMuPDF extraction:
+   - Use **basic PyMuPDF `get_text()`** — simple, no additional dependencies:
      ```python
      import pymupdf
-     doc = pymupdf.open(pdf_path)
-     text = ""
-     for page in doc:
-         text += page.get_text()
-     doc.close()
-     return text
+     def extract_text(pdf_path: str) -> str:
+         """Extract plain text from a PDF file using PyMuPDF."""
+         doc = pymupdf.open(pdf_path)
+         text = ""
+         for page in doc:
+             text += page.get_text()
+         doc.close()
+         return text
      ```
-   - **Scanned PDF detection:** After extraction, if the resulting text (stripped) is less than 100 characters, raise a `ValueError` with message: `"This appears to be a scanned PDF. Please upload a text-based PDF."`
+   - **No pymupdf4llm** — not needed for MVP
+   - **No OCR** — text-based PDFs only
+   - If extracted text (stripped) is less than 100 characters, raise `ValueError("Could not extract text from this PDF. Please ensure it is a text-based PDF.")`
    - Return the extracted text string
-
-2. **No OCR** — per decision D-03, scanned PDFs are rejected, not OCR'd
 </action>
 
 <acceptance_criteria>
 - `pdf_parser.py` contains `def extract_text(pdf_path: str) -> str`
-- `pdf_parser.py` imports `pymupdf4llm` and uses `to_markdown()` as primary extraction
-- `pdf_parser.py` imports `pymupdf` and uses `get_text()` as fallback in a `try/except` block
-- `pdf_parser.py` raises `ValueError("This appears to be a scanned PDF")` when extracted text < 100 chars
+- `pdf_parser.py` imports `pymupdf` and uses `get_text()` — **no pymupdf4llm import**
+- `pdf_parser.py` raises `ValueError` when extracted text < 100 chars
 - `pdf_parser.py` does NOT import or use tesseract/OCR
 - Calling `extract_text("path/to/valid.pdf")` returns a non-empty string
 </acceptance_criteria>
 
 ---
 
-### Task 4: Section Detection with Gemini Fallback (section_detector.py)
+### Task 4: Regex-Only Section Detection (section_detector.py)
 
 <read_first>
 - ResearchSense_Research.md (Section 5 — Section Detection)
-- .planning/phases/01-environment-pdf-parser/01-CONTEXT.md (Decisions D-04, D-05, D-06, D-07, D-12, D-13)
+- .planning/phases/01-environment-pdf-parser/01-CONTEXT.md (Decisions D-04, D-05, D-06, D-07)
 </read_first>
 
 <action>
@@ -213,28 +217,14 @@ Create `section_detector.py` with:
    }
    ```
 
-2. **`detect_sections_regex(text: str) -> dict`** function:
+2. **`detect_sections(text: str) -> dict`** function — **regex only, no Gemini**:
    - Splits text by lines
-   - Iterates through lines, matching against `SECTION_PATTERNS`
+   - Iterates through lines, matching against `SECTION_PATTERNS` (case-insensitive)
    - When a section header is found, all subsequent lines go to that section until the next header
-   - Returns dict with keys: `abstract`, `introduction`, `literature_review`, `methodology`, `results`, `discussion`, `conclusion`, `references` — each value is the section text (empty string `""` if not found)
+   - Returns dict with all section keys — empty string `""` for any section not found
+   - **No Gemini fallback** — if regex finds 0 sections, return the empty dict as-is
 
-3. **`detect_sections_gemini(text: str) -> dict`** function:
-   - Imports `google.generativeai as genai` and `os`
-   - Loads model from env: `os.getenv("GEMINI_MODEL_PRIMARY", "gemini-2.5-flash")`
-   - Sends prompt asking Gemini to split text into sections (first 8000 chars)
-   - Parses JSON response
-   - On failure/invalid JSON: retries once with stricter prompt suffix: `"Return ONLY valid JSON. No markdown code blocks. No explanatory text."`
-   - On second failure: returns empty sections dict
-   - Implements primary→fallback model chain per D-12
-
-4. **`detect_sections(text: str) -> dict`** function (main entry point):
-   - Calls `detect_sections_regex(text)` first
-   - Counts non-empty sections: `found = len([v for v in sections.values() if v.strip()])`
-   - If `found < 3`: calls `detect_sections_gemini(text)` as fallback
-   - Returns the final sections dict
-
-The returned dict format must match the interface contract from TEAM_SUMMARY.md:
+The returned dict format (must match interface contract from TEAM_SUMMARY.md):
 ```python
 {
     "abstract": str,
@@ -250,13 +240,10 @@ The returned dict format must match the interface contract from TEAM_SUMMARY.md:
 
 <acceptance_criteria>
 - `section_detector.py` contains `SECTION_PATTERNS` dict with patterns for all 8 section types
-- `section_detector.py` contains `def detect_sections_regex(text: str) -> dict`
-- `section_detector.py` contains `def detect_sections_gemini(text: str) -> dict`
-- `section_detector.py` contains `def detect_sections(text: str) -> dict` as the main entry point
+- `section_detector.py` contains `def detect_sections(text: str) -> dict` as the **only** public function
+- **No `detect_sections_gemini` function** — Gemini fallback is not implemented
 - Regex detection correctly identifies sections from headings like `"1. Introduction"`, `"Abstract"`, `"3. Methodology"`
-- Gemini fallback triggers only when `len(found_sections) < 3`
-- Gemini fallback uses `GEMINI_MODEL_PRIMARY` env var, with `GEMINI_MODEL_FALLBACK` as secondary
-- Invalid JSON from Gemini triggers one retry with stricter prompt
+- Missing sections return empty string `""` — not an error
 - Returned dict always has keys: `abstract`, `introduction`, `methodology`, `results`, `discussion`, `conclusion`, `references`
 - Each value is a string (empty `""` if section not found)
 </acceptance_criteria>
@@ -267,11 +254,11 @@ The returned dict format must match the interface contract from TEAM_SUMMARY.md:
 
 ### Must-Haves (derived from Phase 1 goal)
 1. ✓ FastAPI starts and accepts PDF upload on `/analyze`
-2. ✓ pymupdf4llm extracts text from a real PDF
-3. ✓ Section detection splits text using regex (with Gemini fallback)
-4. ✓ JSON response returns identified sections
-5. ✓ Missing required sections (Abstract/Methodology/Conclusion) return formal rejection
-6. ✓ Scanned PDFs are rejected gracefully
+2. ✓ Basic PyMuPDF `get_text()` extracts text from a real PDF
+3. ✓ Regex-only section detection splits text into sections dict
+4. ✓ JSON response returns identified sections + warnings list
+5. ✓ Missing sections produce a soft warning (not a hard rejection)
+6. ✓ Empty/scanned PDFs return a clear error message
 7. ✓ All config via `.env` — no hardcoded secrets
 
 ### Test Commands

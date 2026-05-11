@@ -21,7 +21,7 @@ autonomous: true
 
 ## Objective
 
-Person 3 creates the stub files for the citation checker, report generator, and the frontend UI skeleton during Phase 1. The citation and report modules define their public APIs (returning placeholder data) so the codebase remains importable. The frontend is built as a working upload UI that connects to Person 1's FastAPI backend — it can successfully upload a PDF and display the Phase 1 section-detection response.
+Person 3 creates the foundation files for citation checking, report generation, and the frontend UI during Phase 1. The citation module provides real DOI regex extraction (useful immediately) plus a stub entry point for Phase 3. The report module is a stub that Phase 4 will implement. The frontend is a working upload UI that connects to Person 1's FastAPI backend.
 
 ## Owner
 
@@ -41,12 +41,9 @@ Person 3 creates the stub files for the citation checker, report generator, and 
 <action>
 Create `citation_checker.py` with:
 
-1. **Imports:** `os`, `re`, `time`, `requests`, `json`
-2. **`extract_citations(references_text: str) -> list`** — stub:
-   - Docstring: `"""Extract individual citation entries from the References section. Full implementation in Phase 3."""`
-   - Returns empty list `[]` with a print message: `"[Phase 3] Citation extraction not yet implemented"`
+1. **Imports:** `re`
 
-3. **`extract_dois(references_text: str) -> list`** — stub with real regex (can be done now):
+2. **`extract_dois(references_text: str) -> list`** — **real implementation** (regex, works now):
    ```python
    def extract_dois(references_text: str) -> list:
        """Extract DOIs from the references section text using regex."""
@@ -55,39 +52,26 @@ Create `citation_checker.py` with:
        return list(set(dois))
    ```
 
-4. **`verify_citations(reference_list: list) -> list`** — stub:
-   - Docstring: `"""Verify citations against Semantic Scholar database. Full implementation in Phase 3."""`
-   - Returns empty list `[]`
-
-5. **`validate_dois(dois: list, email: str = None) -> list`** — stub:
-   - Docstring: `"""Validate DOIs against CrossRef API. Full implementation in Phase 3."""`
-   - Returns empty list `[]`
-
-6. **`calculate_citation_score(verified_citations: list, validated_dois: list) -> float`** — stub:
-   - Docstring: `"""Calculate citation quality score (0-10). Full implementation in Phase 3."""`
-   - Returns `5.0` (neutral score)
-
-7. **`run_citation_check(references_text: str) -> dict`** — main entry point stub:
+3. **`run_citation_check(references_text: str) -> dict`** — entry point (partial implementation):
+   - Extracts DOIs using `extract_dois()` (real)
    - Returns:
      ```python
      {
-         "citations_found": 0,
-         "citations_verified": 0,
          "dois_found": len(extract_dois(references_text)),
-         "dois_valid": 0,
-         "citation_score": 5.0,
-         "details": "Citation checking not yet implemented. Coming in Phase 3."
+         "citation_score": 5.0,   # neutral placeholder until Phase 3
+         "details": "DOI extraction complete. Full citation verification (Semantic Scholar + CrossRef) coming in Phase 3."
      }
      ```
 </action>
 
 <acceptance_criteria>
 - `citation_checker.py` exists in the project root
-- `citation_checker.py` contains `def extract_dois(references_text: str) -> list` with a working DOI regex
+- `citation_checker.py` contains `def extract_dois(references_text: str) -> list` with working DOI regex
 - `citation_checker.py` contains `def run_citation_check(references_text: str) -> dict` as the main entry point
 - `extract_dois("See doi: 10.1234/test.5678 and 10.9999/another")` returns a list with 2 DOIs
 - `run_citation_check("")` returns a dict with `"citation_score": 5.0`
 - File can be imported without errors: `python -c "import citation_checker"`
+- **No Semantic Scholar or CrossRef API calls** — those are Phase 3
 </acceptance_criteria>
 
 ---
@@ -554,9 +538,9 @@ The frontend connects to `http://localhost:8000` — Person 1's FastAPI backend.
 ## Verification
 
 ### Must-Haves (derived from Phase 1 contribution)
-1. ✓ `citation_checker.py` defines the public API that Phase 3 will implement
-2. ✓ `report_generator.py` defines the public API that Phase 4 will implement
-3. ✓ DOI regex extraction works on real reference text
+1. ✓ `citation_checker.py` provides DOI regex extraction (real, usable now)
+2. ✓ `citation_checker.py` stub entry point returns neutral citation score — Phase 3 fills in real API calls
+3. ✓ `report_generator.py` defines the public API that Phase 4 will implement
 4. ✓ Frontend upload page works with Person 1's backend
 5. ✓ All stub files are importable without errors
 6. ✓ Frontend displays section detection results from the `/analyze` endpoint
