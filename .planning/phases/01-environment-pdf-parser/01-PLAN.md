@@ -11,7 +11,6 @@ files_modified:
   - section_detector.py
   - requirements.txt
   - .env.example
-  - .gitignore
 requirements:
   - CORE-01
   - CORE-02
@@ -36,13 +35,13 @@ Person 1 builds the entire backend foundation for ResearchSense: project scaffol
 
 ### Task 1: Project Scaffolding & Dependencies
 
-<read_first>
-- ResearchSense_Research.md (Section 14 — Installation & Setup Guide)
-- TEAM_SUMMARY.md (Section 5 — Environment Setup)
-- .gitignore
-</read_first>
+**Read first:**
+- `ResearchSense_Research.md` (Section 14 — Installation & Setup Guide)
+- `TEAM_SUMMARY.md` (Section 5 — Environment Setup)
+- `.gitignore`
 
-<action>
+**Action:**
+
 Create the following files in the project root:
 
 **requirements.txt:**
@@ -58,6 +57,8 @@ semanticscholar
 python-dotenv
 ```
 
+> **Note:** `pymupdf4llm` is NOT included — we use basic `get_text()` only for MVP.
+
 **.env.example:**
 ```
 GEMINI_API_KEY=your_gemini_api_key_here
@@ -65,32 +66,32 @@ GEMINI_MODEL=gemini-2.5-flash
 CONTACT_EMAIL=your_email@example.com
 ```
 
+> **Note:** Single model only — no `GEMINI_MODEL_FALLBACK`. Multi-model orchestration is future scope.
+
 Verify `.gitignore` already contains `.env` — if not, add it.
 
 Create a personal `.env` file (not committed) with your actual `GEMINI_API_KEY`.
-</action>
 
-<acceptance_criteria>
-- `requirements.txt` exists and contains all 9 packages listed above (`pymupdf4llm` is NOT included)
-- `.env.example` exists and contains `GEMINI_API_KEY=`, `GEMINI_MODEL=`, `CONTACT_EMAIL=`
+**Acceptance criteria:**
+- `requirements.txt` exists with all 9 packages (no `pymupdf4llm`)
+- `.env.example` exists with `GEMINI_API_KEY=`, `GEMINI_MODEL=`, `CONTACT_EMAIL=`
 - `.gitignore` contains `.env`
-- Running `pip install -r requirements.txt` in a fresh venv succeeds without errors
-</acceptance_criteria>
+- `pip install -r requirements.txt` succeeds in a fresh venv
 
 ---
 
 ### Task 2: FastAPI Application Skeleton (main.py)
 
-<read_first>
-- ResearchSense_Research.md (Section 10 — Backend FastAPI)
-- TEAM_SUMMARY.md (Section 3 — Person 1 Responsibilities)
-- .planning/phases/01-environment-pdf-parser/01-CONTEXT.md (Decisions D-08, D-09, D-10, D-11)
-</read_first>
+**Read first:**
+- `ResearchSense_Research.md` (Section 10 — Backend FastAPI)
+- `TEAM_SUMMARY.md` (Section 3 — Person 1 Responsibilities)
+- `01-CONTEXT.md` (Decisions D-08, D-09, D-10, D-11)
 
-<action>
+**Action:**
+
 Create `main.py` with:
 
-1. **Imports:** FastAPI, UploadFile, File, CORSMiddleware, JSONResponse, tempfile, os, dotenv
+1. **Imports:** `FastAPI`, `UploadFile`, `File`, `CORSMiddleware`, `JSONResponse`, `tempfile`, `os`, `dotenv`
 2. **Load `.env`** using `from dotenv import load_dotenv; load_dotenv()`
 3. **FastAPI app** with `title="ResearchSense API"`, `version="1.0.0"`
 4. **CORS middleware:**
@@ -105,105 +106,109 @@ Create `main.py` with:
 5. **Health check endpoint:** `GET /` → returns `{"status": "ResearchSense API is running"}`
 6. **Analyze endpoint:** `POST /analyze` that:
    - Accepts `file: UploadFile = File(...)`
-   - Validates file is `.pdf` — returns 400 with `{"error": "Only PDF files are accepted"}` if not
-   - Saves to temp file
+   - Validates file is `.pdf` — returns 400 if not:
+     ```python
+     {"error": "Only PDF files are accepted"}
+     ```
+   - Saves uploaded file to a temp file
    - Calls `pdf_parser.extract_text(tmp_path)` to get raw text
-   - Calls `section_detector.detect_sections(text)` to get sections dict
-   - If extraction returns empty text, returns 422 with:
+   - If extraction returns empty/short text, returns 422:
      ```python
      {
          "error": "Text extraction failed",
          "message": "Could not extract text from this PDF. Please ensure it is a text-based PDF."
      }
      ```
-   - **No strict section rejection** — proceed with whatever sections were detected; add a soft warning if any key sections are missing:
+   - Calls `section_detector.detect_sections(text)` to get sections dict
+   - **No strict section rejection** — proceed with whatever sections were detected. Add a soft warning listing any missing key sections:
      ```python
      warnings = []
      for s in ["abstract", "methodology", "conclusion"]:
          if not sections.get(s, "").strip():
              warnings.append(s)
      ```
-   - On success, returns:
+   - Returns success response:
      ```python
      {
          "filename": file.filename,
          "sections": sections,
          "section_count": len([v for v in sections.values() if v.strip()]),
-         "warnings": warnings  # list of section names not detected
+         "warnings": warnings
      }
      ```
-   - Cleans up temp file in `finally` block
+   - Cleans up temp file in a `finally` block
 7. **`if __name__ == "__main__":`** block with `uvicorn.run(app, host="0.0.0.0", port=8000)`
 
-**Note:** Phase 1 returns only sections JSON. AI analysis (Person 2) and citation checking (Person 3) will be wired into main.py in later phases.
-</action>
+> **Note:** Phase 1 returns only sections JSON. AI analysis (Person 2) and citation checking (Person 3) will be wired into `main.py` in later phases.
 
-<acceptance_criteria>
-- `main.py` contains `from fastapi import FastAPI, UploadFile, File`
-- `main.py` contains `load_dotenv()`
-- `main.py` contains `CORSMiddleware` with `allow_origins=["*"]`
-- `main.py` contains `@app.get("/")` health check returning `{"status": "ResearchSense API is running"}`
-- `main.py` contains `@app.post("/analyze")` endpoint
-- `main.py` validates `.pdf` extension and returns 400 for non-PDF
-- `main.py` returns a **soft warning** (not a hard rejection) if key sections are missing — analysis still proceeds
-- `main.py` returns sections dict on success with keys: `filename`, `sections`, `section_count`, `warnings`
-- `main.py` cleans up temp file in `finally` block
-- Running `uvicorn main:app --reload` starts the server on port 8000
-- `GET http://localhost:8000/` returns `{"status": "ResearchSense API is running"}`
-</acceptance_criteria>
+**Acceptance criteria:**
+- `main.py` loads `.env` via `load_dotenv()`
+- `main.py` has CORS middleware with `allow_origins=["*"]`
+- `GET /` returns `{"status": "ResearchSense API is running"}`
+- `POST /analyze` accepts PDF uploads
+- Non-PDF files get 400 error
+- Empty/scanned PDFs get 422 error
+- Missing sections produce a **soft warning** (not a hard rejection) — analysis still proceeds
+- Response includes `filename`, `sections`, `section_count`, `warnings`
+- Temp file is cleaned up in `finally` block
+- `uvicorn main:app --reload` starts on port 8000
 
 ---
 
 ### Task 3: PDF Text Extraction (pdf_parser.py)
 
-<read_first>
-- ResearchSense_Research.md (Section 4 — PDF Parsing PyMuPDF)
-- .planning/phases/01-environment-pdf-parser/01-CONTEXT.md (Decisions D-01, D-02, D-03)
-</read_first>
+**Read first:**
+- `ResearchSense_Research.md` (Section 4 — PDF Parsing PyMuPDF)
+- `01-CONTEXT.md` (Decisions D-01, D-02, D-03)
 
-<action>
-Create `pdf_parser.py` with:
+**Action:**
 
-1. **`extract_text(pdf_path: str) -> str`** function:
-   - Use **basic PyMuPDF `get_text()`** — simple, no additional dependencies:
-     ```python
-     import pymupdf
-     def extract_text(pdf_path: str) -> str:
-         """Extract plain text from a PDF file using PyMuPDF."""
-         doc = pymupdf.open(pdf_path)
-         text = ""
-         for page in doc:
-             text += page.get_text()
-         doc.close()
-         return text
-     ```
-   - **No pymupdf4llm** — not needed for MVP
-   - **No OCR** — text-based PDFs only
-   - If extracted text (stripped) is less than 100 characters, raise `ValueError("Could not extract text from this PDF. Please ensure it is a text-based PDF.")`
-   - Return the extracted text string
-</action>
+Create `pdf_parser.py` with a single function:
 
-<acceptance_criteria>
-- `pdf_parser.py` contains `def extract_text(pdf_path: str) -> str`
-- `pdf_parser.py` imports `pymupdf` and uses `get_text()` — **no pymupdf4llm import**
-- `pdf_parser.py` raises `ValueError` when extracted text < 100 chars
-- `pdf_parser.py` does NOT import or use tesseract/OCR
-- Calling `extract_text("path/to/valid.pdf")` returns a non-empty string
-</acceptance_criteria>
+```python
+import pymupdf
+
+def extract_text(pdf_path: str) -> str:
+    """Extract plain text from a PDF file using PyMuPDF."""
+    doc = pymupdf.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    doc.close()
+
+    if len(text.strip()) < 100:
+        raise ValueError(
+            "Could not extract text from this PDF. Please ensure it is a text-based PDF."
+        )
+
+    return text
+```
+
+Key points:
+- **Basic `get_text()` only** — no `pymupdf4llm`, no Markdown pipeline
+- **No OCR** — text-based PDFs only
+- Raises `ValueError` if extracted text is < 100 chars (likely scanned/image PDF)
+
+**Acceptance criteria:**
+- `pdf_parser.py` has `def extract_text(pdf_path: str) -> str`
+- Imports `pymupdf` only — no `pymupdf4llm` import
+- Raises `ValueError` when text < 100 chars
+- Does NOT import tesseract or any OCR library
+- Returns non-empty string for a valid text-based PDF
 
 ---
 
 ### Task 4: Regex-Only Section Detection (section_detector.py)
 
-<read_first>
-- ResearchSense_Research.md (Section 5 — Section Detection)
-- .planning/phases/01-environment-pdf-parser/01-CONTEXT.md (Decisions D-04, D-05, D-06, D-07)
-</read_first>
+**Read first:**
+- `ResearchSense_Research.md` (Section 5 — Section Detection)
+- `01-CONTEXT.md` (Decisions D-04, D-05, D-06, D-07)
 
-<action>
+**Action:**
+
 Create `section_detector.py` with:
 
-1. **`SECTION_PATTERNS` dict** — regex patterns for each section (from ResearchSense_Research.md §5):
+1. **`SECTION_PATTERNS` dict** — regex patterns for each section:
    ```python
    SECTION_PATTERNS = {
        "abstract": r"\b(abstract)\b",
@@ -217,14 +222,14 @@ Create `section_detector.py` with:
    }
    ```
 
-2. **`detect_sections(text: str) -> dict`** function — **regex only, no Gemini**:
+2. **`detect_sections(text: str) -> dict`** — the only public function, **regex only**:
    - Splits text by lines
    - Iterates through lines, matching against `SECTION_PATTERNS` (case-insensitive)
    - When a section header is found, all subsequent lines go to that section until the next header
    - Returns dict with all section keys — empty string `""` for any section not found
-   - **No Gemini fallback** — if regex finds 0 sections, return the empty dict as-is
+   - **No Gemini fallback** — if regex finds 0 sections, return the dict with empty values
 
-The returned dict format (must match interface contract from TEAM_SUMMARY.md):
+Output dict format (must match interface contract from `TEAM_SUMMARY.md`):
 ```python
 {
     "abstract": str,
@@ -236,27 +241,24 @@ The returned dict format (must match interface contract from TEAM_SUMMARY.md):
     "references": str
 }
 ```
-</action>
 
-<acceptance_criteria>
-- `section_detector.py` contains `SECTION_PATTERNS` dict with patterns for all 8 section types
-- `section_detector.py` contains `def detect_sections(text: str) -> dict` as the **only** public function
-- **No `detect_sections_gemini` function** — Gemini fallback is not implemented
-- Regex detection correctly identifies sections from headings like `"1. Introduction"`, `"Abstract"`, `"3. Methodology"`
-- Missing sections return empty string `""` — not an error
-- Returned dict always has keys: `abstract`, `introduction`, `methodology`, `results`, `discussion`, `conclusion`, `references`
-- Each value is a string (empty `""` if section not found)
-</acceptance_criteria>
+**Acceptance criteria:**
+- Has `SECTION_PATTERNS` dict with 8 regex patterns
+- Has `def detect_sections(text: str) -> dict` as the **only** public function
+- **No `detect_sections_gemini` function** — no Gemini in this file at all
+- Correctly identifies `"1. Introduction"`, `"Abstract"`, `"3. Methodology"` etc.
+- Missing sections return `""` — not an error
+- Output dict always has all 7 keys (abstract through references)
 
 ---
 
 ## Verification
 
-### Must-Haves (derived from Phase 1 goal)
+### Must-Haves
 1. ✓ FastAPI starts and accepts PDF upload on `/analyze`
 2. ✓ Basic PyMuPDF `get_text()` extracts text from a real PDF
 3. ✓ Regex-only section detection splits text into sections dict
-4. ✓ JSON response returns identified sections + warnings list
+4. ✓ JSON response includes sections + warnings list
 5. ✓ Missing sections produce a soft warning (not a hard rejection)
 6. ✓ Empty/scanned PDFs return a clear error message
 7. ✓ All config via `.env` — no hardcoded secrets
