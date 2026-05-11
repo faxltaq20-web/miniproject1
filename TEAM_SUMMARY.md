@@ -47,9 +47,9 @@ Frontend Display + Download Report
 ### Tech Stack (all free)
 | Component | Technology |
 |-----------|-----------|
-| AI Engine | Google Gemini 2.5 Flash (primary) + Flash-Lite (fallback) |
+| AI Engine | Google Gemini 2.5 Flash (single model, no fallback) |
 | PDF Parsing | PyMuPDF (`get_text()`) — simple text extraction |
-| Citation Check | Semantic Scholar API + CrossRef API |
+| Citation Check | Regex DOI extraction + CrossRef API |
 | Backend | FastAPI + Uvicorn |
 | Report | ReportLab |
 | Frontend | HTML + CSS + JavaScript |
@@ -106,14 +106,18 @@ requirements.txt     ← all Python dependencies
 - POST a PDF to `http://localhost:8000/analyze` → get back JSON with detected sections:
 ```json
 {
+  "filename": "paper.pdf",
   "sections": {
     "abstract": "...",
     "introduction": "...",
     "methodology": "...",
     "results": "...",
+    "discussion": "...",
     "conclusion": "...",
     "references": "..."
-  }
+  },
+  "section_count": 7,
+  "warnings": []
 }
 ```
 
@@ -180,7 +184,7 @@ scoring.py           ← weighted confidence score algorithm
 
 **Files owned:**
 ```
-citation_checker.py  ← Semantic Scholar + CrossRef API integration
+citation_checker.py  ← Regex DOI extraction + CrossRef validation
 report_generator.py  ← ReportLab PDF report generation
 frontend/
   ├── index.html     ← upload page with drag-and-drop
@@ -189,8 +193,7 @@ frontend/
 ```
 
 **Responsibilities:**
-- Implement citation extraction from the References section
-- Integrate Semantic Scholar API for citation existence/credibility check
+- Implement DOI extraction from the References section using **regex** (no Gemini)
 - Integrate CrossRef API for DOI validation
 - Implement citation quality scoring (Layer 8, weight: 10%)
 - Build ReportLab PDF report with:
@@ -211,7 +214,6 @@ frontend/
 - Upload PDF → see results → download report
 
 **Key reference sections in ResearchSense_Research.md:**
-- §7 — Semantic Scholar API integration
 - §8 — CrossRef API and DOI extraction
 - §11 — Frontend HTML/JS templates
 - §12 — ReportLab report generation
