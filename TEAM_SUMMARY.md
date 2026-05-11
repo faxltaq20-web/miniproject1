@@ -11,10 +11,10 @@
 ### Core Flow
 ```
 User uploads PDF
+      ↑
+Text Extraction (PyMuPDF basic get_text())
       ↓
-Text Extraction (pymupdf4llm → get_text() fallback)
-      ↓
-Section Detection (Regex → Gemini fallback if < 3 sections)
+Section Detection (Regex-only)
       ↓
 8-Layer Analysis (Gemini API × 7 layers + Citation APIs × 1 layer)
       ↓
@@ -33,7 +33,7 @@ Display in Web UI
 | Component | Technology |
 |-----------|-----------|
 | AI Engine | Google Gemini 2.5 Flash (primary) + Flash-Lite (fallback) |
-| PDF Parsing | pymupdf4llm + PyMuPDF |
+| PDF Parsing | PyMuPDF (`get_text()`) — simple text extraction |
 | Citation Check | Semantic Scholar API + CrossRef API |
 | Backend | FastAPI + Uvicorn |
 | Report | ReportLab |
@@ -45,18 +45,18 @@ Display in Web UI
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
-| PDF extraction | pymupdf4llm (Markdown) primary | Preserves headings → better section detection |
-| Scanned PDFs | Fail gracefully, no OCR | Simpler; students have text-based PDFs |
-| Section detection | Regex first → Gemini if < 3 found | Saves Gemini API quota |
-| Minimum sections | Abstract + Methodology + Conclusion | Reject early if missing; saves compute |
-| Rejection response | Error message + note about sample format PDF | Helps students fix their paper |
+| PDF extraction | Basic `get_text()` via PyMuPDF | Simple, reliable, no extra dependencies |
+| pymupdf4llm | Not used — future scope | Unnecessary complexity for MVP |
+| Scanned PDFs | Simple error, text-based PDFs only | MVP scope; OCR is future |
+| Section detection | Regex-only, no Gemini fallback | No API quota wasted on section parsing |
+| Missing sections | Soft warning, analysis proceeds | No strict rejection gate for MVP |
 | Project layout | Modular from day 1 | Clean team ownership per file |
 | API keys | `.env` file with python-dotenv | Easy to change keys/models, safe for GitHub |
 | API failure | Flash → Flash-Lite → clear error | Resilience without complexity |
 | Invalid JSON from Gemini | Retry once with stricter prompt → 0/10 | Graceful degradation |
 | Team collaboration | GitHub branches per module | Clean integration, no conflicts |
 | Primary audience | Professors (not students) | Report tone is formal/clinical |
-| Report tone | Peer-review style, not coaching | "Structural validation failed" not "You need to fix..." |
+| Report tone | Peer-review style, not coaching | Formal language throughout |
 
 ---
 
@@ -71,8 +71,8 @@ The project is split into **3 module groups** — one per team member. Each pers
 **Files owned:**
 ```
 main.py              ← FastAPI app, /analyze endpoint, orchestration
-pdf_parser.py        ← pymupdf4llm extraction + get_text() fallback
-section_detector.py  ← regex section detection + Gemini fallback
+pdf_parser.py        ← basic PyMuPDF get_text() extraction
+section_detector.py  ← regex-only section detection (no Gemini fallback)
 .env.example         ← template for environment variables (no real keys)
 requirements.txt     ← all Python dependencies
 ```
@@ -80,10 +80,10 @@ requirements.txt     ← all Python dependencies
 **Responsibilities:**
 - Set up the Python virtual environment and install all dependencies
 - Build the FastAPI skeleton with the `/analyze` endpoint
-- Implement PDF text extraction using pymupdf4llm
-- Implement section detection (regex patterns from ResearchSense_Research.md §5)
-- Implement Gemini fallback for section detection (triggers when < 3 sections found)
-- Implement early rejection logic (missing Abstract/Methodology/Conclusion → formal error)
+- Implement PDF text extraction using **basic PyMuPDF `get_text()`** (no pymupdf4llm)
+- Implement **regex-only** section detection (patterns from ResearchSense_Research.md §5) — no Gemini fallback
+- If a PDF yields no extractable text: return a simple error message (no OCR, no Tesseract)
+- If sections are missing: populate those keys as empty strings `""` and add a soft warning in the response — **do not block analysis**
 - Wire up `.env` loading with python-dotenv
 - Add CORS middleware so the frontend can call the backend
 
@@ -103,8 +103,8 @@ requirements.txt     ← all Python dependencies
 ```
 
 **Key reference sections in ResearchSense_Research.md:**
-- §4 — PyMuPDF extraction code
-- §5 — Section detection regex patterns + Gemini fallback
+- §4 — PyMuPDF extraction code (use basic `get_text()` only)
+- §5 — Section detection regex patterns (regex only, skip Gemini fallback section)
 - §10 — FastAPI skeleton
 - §14 — Setup guide and project structure
 
@@ -179,7 +179,7 @@ frontend/
   - Per-dimension score breakdown table
   - Specific issues found per layer
   - Actionable suggestions per layer
-  - Sample paper structure template (shown when paper is rejected for missing sections)
+  - Soft warning section if any paper sections were not detected
 - Build HTML/CSS/JS frontend:
   - Drag-and-drop PDF upload with file validation
   - Loading indicator during analysis (30–60 seconds)
@@ -262,7 +262,7 @@ venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Mac/Linux
 
 # 3. Install all dependencies
-pip install google-generativeai pymupdf pymupdf4llm fastapi uvicorn python-multipart reportlab requests semanticscholar python-dotenv
+pip install google-generativeai pymupdf fastapi uvicorn python-multipart reportlab requests semanticscholar python-dotenv
 
 # 4. Create your .env file (copy from .env.example)
 # Fill in your own GEMINI_API_KEY

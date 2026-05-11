@@ -1,6 +1,7 @@
 # Phase 1: Environment & PDF Parser - Context
 
 **Gathered:** 2026-04-26
+**Updated:** 2026-05-11 — simplified to MVP scope
 **Status:** Ready for planning
 
 <domain>
@@ -16,15 +17,15 @@ Set up the complete project foundation: virtual environment, modular file struct
 ## Implementation Decisions
 
 ### PDF Extraction
-- **D-01:** Use `pymupdf4llm` (Markdown output) as the **primary** extraction method — preserves heading structure which makes section detection significantly more reliable
-- **D-02:** Fall back to `pymupdf` basic `get_text()` only if `pymupdf4llm` fails/throws an exception
-- **D-03:** **No OCR** — scanned PDFs (no extractable text) are rejected with a clear error message: "This appears to be a scanned PDF. Please upload a text-based PDF." No Tesseract dependency needed.
+- **D-01:** Use **basic PyMuPDF `get_text()`** for text extraction — simple, reliable, no additional dependencies
+- **D-02:** `pymupdf4llm` (Markdown pipeline) is **not used** — unnecessary complexity for MVP
+- **D-03:** **No OCR, no scanned PDF handling** — text-based PDFs only. If a PDF yields no text, return a simple error: "Could not extract text from this PDF. Please ensure it is a text-based PDF." This is MVP scope; OCR is future scope.
 
 ### Section Detection
-- **D-04:** Regex-based detection runs first on the Markdown output from pymupdf4llm
-- **D-05:** Gemini AI fallback triggers **only if fewer than 3 sections are detected** by regex — this is the threshold check: `if len(sections) < 3: use_gemini_fallback()`
-- **D-06:** Minimum required sections for analysis to proceed: **Abstract + Methodology + Conclusion**. If any of these three are missing after detection, reject the paper immediately.
-- **D-07:** Rejection response includes: (a) clear error message listing exactly which sections are missing, (b) a note informing the user that a sample format PDF is available — actual sample PDF generation is deferred to Phase 4 (ReportLab)
+- **D-04:** **Regex-only** detection on the plain text extracted by PyMuPDF — no Gemini fallback
+- **D-05:** Gemini fallback for section detection is **removed** — it wastes API quota and regex on academic papers is sufficient for MVP
+- **D-06:** **No strict rejection gate** — if some sections are missing, proceed with what was found and let the analysis layers handle partial content. Warn the user which sections were not detected but do not block analysis.
+- **D-07:** Section detection output is a best-effort dict — missing sections are empty strings `""`; downstream layers skip or score 0 for missing sections
 
 ### Project Layout
 - **D-08:** Modular from day 1 — one file per responsibility, mirroring the team split:
@@ -53,6 +54,13 @@ Set up the complete project foundation: virtual environment, modular file struct
 ### Error Handling & API Resilience
 - **D-12:** API failure chain: Try `GEMINI_MODEL_PRIMARY` → on failure (429, error), try `GEMINI_MODEL_FALLBACK` → if both fail, return clear error: "Analysis service temporarily unavailable. Please try again in a few minutes."
 - **D-13:** When Gemini returns unparseable/invalid JSON: retry that specific layer **once** with a stricter prompt suffix: "Return ONLY valid JSON. No markdown code blocks. No explanatory text." If retry also fails → mark that layer as 0/10 and continue with remaining layers.
+
+### Future Scope (not in MVP)
+- `pymupdf4llm` Markdown extraction pipeline
+- Gemini fallback for section detection
+- OCR / scanned PDF support (Tesseract)
+- Strict structural validation / multi-level rejection logic
+- Multi-level fallback systems for section parsing
 
 ### Team & Collaboration
 - **D-14:** Team of 3, each owning one module group (P1/P2/P3 as above)
@@ -104,17 +112,20 @@ Set up the complete project foundation: virtual environment, modular file struct
 <specifics>
 ## Specific Ideas
 
-- The rejection message for missing sections should be **professor-facing and formal** — e.g., "Structural validation failed: The following required sections were not detected: [Methodology]. Papers must contain Abstract, Methodology, and Conclusion to proceed with analysis."
+- Missing sections produce a **soft warning** in the response, not a hard rejection — analysis proceeds with available sections
 - Model names stored as env vars means switching from Flash to Flash-Lite (or any future model) requires only a `.env` change, no code changes
-- The `< 3 sections` Gemini fallback threshold was chosen to save API quota — regex on pymupdf4llm Markdown output should handle 95%+ of standard academic PDFs without needing Gemini
+- Regex on plain `get_text()` output is sufficient for MVP — academic papers have predictable heading patterns
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-- **Sample format PDF for rejected papers** — Decided to include this feature, but the PDF generation deferred to Phase 4 (ReportLab is scoped there). Phase 1 returns the text error only.
-- **OCR for scanned PDFs** — Deliberately excluded. Fail gracefully instead. Can be revisited post-submission if needed.
+- **pymupdf4llm / Markdown extraction pipeline** — Deferred to future scope. Basic `get_text()` is sufficient for MVP.
+- **Gemini fallback for section detection** — Deferred to future scope. Regex-only for now.
+- **OCR for scanned PDFs** — Future scope. Text-based PDFs only for MVP.
+- **Strict structural rejection (missing section gate)** — Future scope. MVP proceeds with best-effort section detection.
+- **Multi-level fallback systems** — Future scope.
 
 </deferred>
 
@@ -122,3 +133,4 @@ Set up the complete project foundation: virtual environment, modular file struct
 
 *Phase: 01-environment-pdf-parser*
 *Context gathered: 2026-04-26*
+*Last updated: 2026-05-11 — simplified to MVP (basic PyMuPDF, regex-only section detection, no Gemini fallback, no OCR, no strict rejection)*
