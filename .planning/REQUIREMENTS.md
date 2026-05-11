@@ -7,9 +7,10 @@
 
 ### Core Pipeline
 - [ ] **CORE-01**: User can upload a PDF research paper via Web UI
-- [ ] **CORE-02**: System extracts text from the PDF using PyMuPDF (with OCR fallback)
+- [ ] **CORE-02**: System extracts text from the PDF using PyMuPDF (no OCR)
 - [ ] **CORE-03**: System segments extracted text into standard academic sections
 - [ ] **CORE-04**: FastAPI backend orchestrates the full analysis pipeline
+- [ ] **CORE-05**: System handles API rate limits with exponential backoff and gracefully degrades on failures (invalid PDFs, empty sections, API errors)
 
 ### AI Analysis Engine
 - [ ] **AI-01**: System evaluates Grammar & Language (Layer 1) via Gemini API
@@ -21,9 +22,8 @@
 - [ ] **AI-07**: System evaluates Conclusion Completeness (Layer 7) via Gemini API
 
 ### Citations & Validation
-- [ ] **CITE-01**: System extracts citations and references from the paper
-- [ ] **CITE-02**: System verifies citation existence/credibility via Semantic Scholar API
-- [ ] **CITE-03**: System validates DOIs via CrossRef API
+- [ ] **CITE-01**: System extracts DOIs using Regex
+- [ ] **CITE-02**: System validates DOIs via CrossRef API
 
 ### Scoring & Reporting
 - [ ] **REP-01**: System calculates a weighted confidence score (0-100) and letter grade
@@ -52,6 +52,7 @@
 | CORE-02 | Phase 1 | Pending |
 | CORE-03 | Phase 1 | Pending |
 | CORE-04 | Phase 1 | Pending |
+| CORE-05 | Phase 2 | Pending |
 | AI-01 | Phase 2 | Pending |
 | AI-02 | Phase 2 | Pending |
 | AI-03 | Phase 2 | Pending |
@@ -61,7 +62,6 @@
 | AI-07 | Phase 2 | Pending |
 | CITE-01 | Phase 3 | Pending |
 | CITE-02 | Phase 3 | Pending |
-| CITE-03 | Phase 3 | Pending |
 | REP-01 | Phase 3 | Pending |
 | REP-02 | Phase 4 | Pending |
 | REP-03 | Phase 4 | Pending |
