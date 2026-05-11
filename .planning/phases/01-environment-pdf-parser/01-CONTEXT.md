@@ -52,7 +52,7 @@ Set up the complete project foundation: virtual environment, modular file struct
 - **D-11:** `.env` is in `.gitignore` — already set up. Each team member uses their own API key locally.
 
 ### Error Handling & API Resilience
-- **D-12:** API failure chain: Try `GEMINI_MODEL_PRIMARY` → on failure (429, error), try `GEMINI_MODEL_FALLBACK` → if both fail, return clear error: "Analysis service temporarily unavailable. Please try again in a few minutes."
+- **D-12:** **Single Gemini model only** (`GEMINI_MODEL=gemini-2.5-flash`) — if the API call fails, return a clear error immediately: "Analysis service temporarily unavailable. Please try again." No Flash-Lite fallback, no multi-model orchestration — MVP keeps it simple.
 - **D-13:** When Gemini returns unparseable/invalid JSON: retry that specific layer **once** with a stricter prompt suffix: "Return ONLY valid JSON. No markdown code blocks. No explanatory text." If retry also fails → mark that layer as 0/10 and continue with remaining layers.
 
 ### Future Scope (not in MVP)
@@ -60,7 +60,7 @@ Set up the complete project foundation: virtual environment, modular file struct
 - Gemini fallback for section detection
 - OCR / scanned PDF support (Tesseract)
 - Strict structural validation / multi-level rejection logic
-- Multi-level fallback systems for section parsing
+- Multi-model Gemini orchestration (Flash → Flash-Lite fallback)
 
 ### Team & Collaboration
 - **D-14:** Team of 3, each owning one module group (P1/P2/P3 as above)

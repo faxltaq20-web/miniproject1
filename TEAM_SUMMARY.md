@@ -52,7 +52,7 @@ Display in Web UI
 | Missing sections | Soft warning, analysis proceeds | No strict rejection gate for MVP |
 | Project layout | Modular from day 1 | Clean team ownership per file |
 | API keys | `.env` file with python-dotenv | Easy to change keys/models, safe for GitHub |
-| API failure | Flash → Flash-Lite → clear error | Resilience without complexity |
+| API failure | Single model (Flash), fail fast with clear error | No multi-model orchestration in MVP |
 | Invalid JSON from Gemini | Retry once with stricter prompt → 0/10 | Graceful degradation |
 | Team collaboration | GitHub branches per module | Clean integration, no conflicts |
 | Primary audience | Professors (not students) | Report tone is formal/clinical |
@@ -119,18 +119,22 @@ scoring.py           ← weighted confidence score algorithm
 ```
 
 **Responsibilities:**
-- Integrate Google Gemini API (`google-generativeai` SDK)
-- Implement all 7 analysis layers using prompt templates from ResearchSense_Research.md §3:
-  - Layer 1: Grammar & Language (15%)
-  - Layer 2: Readability Score (10%)
-  - Layer 3: Abstract Quality (10%)
-  - Layer 4: Structural Integrity (15%)
-  - Layer 5: Methodology Soundness (15%)
-  - Layer 6: Logical Consistency (15%)
-  - Layer 7: Conclusion Completeness (10%)
-- Implement primary → fallback model chain (Flash → Flash-Lite → error)
-- Implement invalid JSON retry logic (retry once with stricter prompt)
-- Implement the weighted scoring algorithm from ResearchSense_Research.md §9
+- Integrate Google Gemini API (`google-generativeai` SDK) with **single model** (`gemini-2.5-flash`) — no multi-model fallback
+- Implement all 7 analysis layers as **separate functions**, each making one Gemini API call:
+  - `analyze_grammar(text)` — Layer 1: Grammar & Language (15%)
+  - `analyze_readability(text)` — Layer 2: Readability Score (10%)
+  - `analyze_abstract(text)` — Layer 3: Abstract Quality (10%)
+  - `analyze_structure(sections)` — Layer 4: Structural Integrity (15%)
+  - `analyze_methodology(text)` — Layer 5: Methodology Soundness (15%)
+  - `analyze_logic(sections)` — Layer 6: Logical Consistency (15%)
+  - `analyze_conclusion(text)` — Layer 7: Conclusion Completeness (10%)
+- If a section is empty string `""` — skip that layer, assign 0/10, no Gemini call
+- If Gemini returns invalid JSON — retry **once** with stricter prompt, then 0/10 if still fails
+- Implement **pure Python scoring** — weighted average math only, no Gemini:
+  ```python
+  confidence_score = sum(layer_scores[k] * weights[k] for k in weights) * 10
+  ```
+- Grade mapping via Python dict/if-else — no AI needed for this
 
 **Deliverable (end of Phase 2):**
 - Function `run_all_layers(sections: dict) → dict` returns 7 layer scores
