@@ -1,0 +1,9 @@
+google-generativeai
+pymupdf
+fastapi
+uvicorn
+python-multipart
+reportlab
+requests
+semanticscholar
+python-dotenv
