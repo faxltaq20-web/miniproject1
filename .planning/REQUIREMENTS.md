@@ -6,10 +6,14 @@
 ## v1 Requirements
 
 ### Core Pipeline
-- [ ] **CORE-01**: User can upload a PDF research paper via Web UI
-- [ ] **CORE-02**: System extracts text from the PDF using PyMuPDF (no OCR)
-- [ ] **CORE-03**: System segments extracted text into standard academic sections
-- [ ] **CORE-04**: FastAPI backend orchestrates the full analysis pipeline
+- [x] **CORE-01
+**: User can upload a PDF research paper via Web UI
+- [x] **CORE-02
+**: System extracts text from the PDF using PyMuPDF (no OCR)
+- [x] **CORE-03
+**: System segments extracted text into standard academic sections
+- [x] **CORE-04
+**: FastAPI backend orchestrates the full analysis pipeline
 - [ ] **CORE-05**: System handles API rate limits with exponential backoff and gracefully degrades on failures (invalid PDFs, empty sections, API errors)
 
 ### AI Analysis Engine
