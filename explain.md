@@ -277,7 +277,7 @@ uvicorn main:app --reload
 ## pdf_parser.py — PDF Text Extractor
 
 **File:** `pdf_parser.py`  
-**Role:** A single-responsibility module. Its only job is to open a PDF file and return all its text as a plain Python string. It has one function and 17 lines.
+**Role:** A single-responsibility module. Its only job is to open a PDF file and return all its text as a plain Python string. It has one function and 23 lines.
 
 ---
 
@@ -286,12 +286,13 @@ uvicorn main:app --reload
 ```
 Given a path to a PDF file on disk
         ↓
-Open the PDF with PyMuPDF
-        ↓
+Try to open the PDF with PyMuPDF
+        ↓ Corrupt / unreadable file? → raise ValueError (returns 422)
+        ↓ Opened OK
 Loop through every page → extract text → join it together
         ↓
 Is the total text < 100 characters?
-        ↓ Yes → raise ValueError (scanned/image PDF, can't use it)
+        ↓ Yes → raise ValueError (scanned/image PDF, returns 422)
         ↓ No  → return the full text string
 ```
 
@@ -318,10 +319,19 @@ def extract_text(pdf_path: str) -> str:
 ---
 
 ```python
-doc = pymupdf.open(pdf_path)
+try:
+    doc = pymupdf.open(pdf_path)
+except Exception:
+    raise ValueError(
+        "Could not extract text from this PDF. Please ensure it is a text-based PDF."
+    )
 ```
 
-Opens the PDF file. `doc` is now a PyMuPDF document object — think of it like a list of pages you can loop through.
+This is a **safety net added during live testing**. When a corrupt or completely malformed PDF is uploaded, PyMuPDF throws its own internal exception (`FileDataError`) — not a `ValueError`. Without this `try/except`, that unhandled exception crashes the server with a `500 Internal Server Error`.
+
+The fix catches **any** exception from `pymupdf.open()` and re-raises it as a `ValueError` — which `main.py` already knows how to handle, returning a clean `422` response to the user instead of a server crash.
+
+`doc` is now a PyMuPDF document object — think of it like a list of pages you can loop through.
 
 ---
 
