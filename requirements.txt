@@ -5,5 +5,4 @@ uvicorn
 python-multipart
 reportlab
 requests
-semanticscholar
 python-dotenv
