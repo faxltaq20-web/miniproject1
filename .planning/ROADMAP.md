@@ -9,6 +9,33 @@
 | [Phase 3: Citations & Scoring](#phase-3-citations--scoring) | Validate references and compute final weighted scores |
 | [Phase 4: Reporting & Web UI](#phase-4-reporting--web-ui) | Generate PDF reports and wire up the final UI |
 
+### Phase 5: Gemini 7-Layer AI Analysis Engine
+
+**Goal:** Implement `gemini_analyzer.py` — a single Gemini prompt that returns structured scores, issues, and suggestions for all 7 analysis layers
+**Depends on:** Phase 1 (sections dict contract from section_detector.py)
+
+**Requirements Mapped:**
+- AI-01: Grammar & Language evaluation (Layer 1)
+- AI-02: Readability Score evaluation (Layer 2)
+- AI-03: Abstract Quality evaluation (Layer 3)
+- AI-04: Structural Integrity evaluation (Layer 4)
+- AI-05: Methodology Soundness evaluation (Layer 5)
+- AI-06: Logical Consistency evaluation (Layer 6)
+- AI-07: Conclusion Completeness evaluation (Layer 7)
+- CORE-05: API rate limit handling with exponential backoff
+
+**Success Criteria:**
+1. `gemini_analyzer.py` exists and `analyze_paper(sections: dict) -> dict` is callable
+2. Single Gemini prompt returns all 7 layers in one API call
+3. Each layer returns: `score` (0-10), `issues` (list of str), `suggestions` (list of str)
+4. Invalid/timeout responses are caught and return neutral fallback scores
+5. Output dict keys match `scoring.py` WEIGHTS keys exactly
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 5 to break down)
+
 ---
 
 ## Phase 1: Environment & PDF Parser
@@ -37,12 +64,14 @@
 - AI-05: System evaluates Methodology Soundness (Layer 5) via Gemini API
 - AI-06: System evaluates Logical Consistency (Layer 6) via Gemini API
 - AI-07: System evaluates Conclusion Completeness (Layer 7) via Gemini API
+- CORE-05: System handles API rate limits with exponential backoff and gracefully degrades on failures
 
 **Success Criteria:**
 1. Integration with `google-generativeai` is working and authenticates
 2. Each of the 7 layers maps to an independent AI analysis prompt
-3. Rate limits are handled properly using wait/retries
-4. Endpoint successfully returns a JSON structure containing 7 layer evaluations.
+3. Rate limits are handled properly using exponential backoff/retries
+4. Endpoint successfully returns a JSON structure containing 7 layer evaluations
+5. Graceful error responses when Gemini returns invalid JSON or times out
 
 ## Phase 3: Citations & Scoring
 **Goal:** Validate references and compute final weighted scores
@@ -61,7 +90,6 @@
 ## Phase 4: Reporting & Web UI
 **Goal:** Generate PDF reports and wire up the final UI
 
-**UI hint:** yes
 
 **Requirements Mapped:**
 - REP-02: System generates a structured PDF report using ReportLab
@@ -72,3 +100,4 @@
 1. Backend `/analyze` endpoint outputs a downloadable PDF using ReportLab
 2. A single-page HTML UI exists with drag-and-drop file support
 3. UI presents the score breakdown visually to the user
+4. Pre-cached sample results available as demo-day backup

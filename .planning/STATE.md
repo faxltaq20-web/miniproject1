@@ -56,3 +56,16 @@ POST /analyze response from Plan 01:
   "warnings": []
 }
 ```
+
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 5 added: Gemini 7-Layer AI Analysis Engine — `gemini_analyzer.py` implementation with structured per-layer output (score + issues + suggestions)
+
+### Report Design Decisions (desirable.md — 18 May 2026)
+- Header: minimal professional (title, filename, date)
+- Score: weighted per-parameter breakdown (8 layers, unequal max marks)
+- Per-parameter: mark + issues + suggestions — Gemini must return both
+- Citations: summary + flagged DOIs only
+- Verdict: 2–3 sentence summary + recommendation line (grade-driven)
+- PDF generation: ReportLab PLATYPUS, direct BytesIO download, no server storage

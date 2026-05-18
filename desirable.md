@@ -157,6 +157,69 @@ Grammar and readability are generally acceptable with minor fixes required.
 
 ---
 
+## Gemini Output Contract (Phase 5 — `gemini_analyzer.py`)
+
+> This section defines exactly what `gemini_analyzer.py` must return.
+> Person 3 (report generator) depends on this structure — both must agree on it.
+
+### Required output per layer
+
+Every layer in the Gemini response **must** include three fields:
+
+```python
+{
+    "grammar": {
+        "score": 8,              # int 0-10 (used by scoring.py)
+        "issues": [              # list of strings — what was found wrong
+            "4 grammatical errors detected",
+            "Excessive passive voice in Section 3"
+        ],
+        "suggestions": [         # list of strings — how to fix each issue
+            "Run manuscript through LanguageTool before resubmission",
+            "Restructure passive constructions in Methodology to active voice"
+        ]
+    },
+    "readability": { ... },      # same structure for all 7 layers
+    "abstract": { ... },
+    "structure": { ... },
+    "methodology": { ... },
+    "logic": { ... },
+    "conclusion": { ... }
+}
+```
+
+### Key rules for gemini_analyzer.py
+
+- **One API call, all 7 layers** — single prompt, single response, no per-layer calls
+- **Keys must match `scoring.py` WEIGHTS exactly:** `grammar`, `readability`, `abstract`, `structure`, `methodology`, `logic`, `conclusion`
+- **`score` is 0–10** (scoring.py converts to 0–100 via weighted multiplication)
+- **`issues` and `suggestions` are both required** — report_generator.py will fail if either is missing
+- **Minimum 1 item per list** — even for a perfect score, at least note "No major issues found"
+- **On Gemini failure / timeout** — return neutral fallback: `{"score": 5, "issues": ["Analysis unavailable"], "suggestions": ["Retry analysis"]}`
+
+### Prompt strategy (single-call approach)
+
+```
+Analyse this academic paper across 7 dimensions. For each dimension return:
+- score: integer 0-10
+- issues: list of specific problems found (minimum 1)
+- suggestions: list of specific fixes (minimum 1, matching issues count)
+
+Dimensions: grammar, readability, abstract, structure, methodology, logic, conclusion
+
+Return ONLY valid JSON matching this schema exactly. No markdown, no explanation.
+
+Paper sections:
+ABSTRACT: {sections['abstract']}
+INTRODUCTION: {sections['introduction']}
+METHODOLOGY: {sections['methodology']}
+RESULTS: {sections['results']}
+DISCUSSION: {sections['discussion']}
+CONCLUSION: {sections['conclusion']}
+```
+
+---
+
 ## Design Decisions Captured (for Person 3 / Phase 4)
 
 | Decision | Choice |
