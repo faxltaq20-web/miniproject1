@@ -1,6 +1,6 @@
 import os
 import tempfile
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -8,9 +8,11 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import pipeline modules (to be implemented in subsequent tasks)
+# Import pipeline modules
 import pdf_parser
 import section_detector
+import gemini_analyzer  # Phase 2
+import scoring          # Phase 2
 
 app = FastAPI(title="ResearchSense API", version="1.0.0")
 
@@ -70,13 +72,29 @@ async def analyze_paper(file: UploadFile = File(...)):
             if not sections.get(s, "").strip():
                 warnings.append(s)
 
-        # Return success response
-        return {
+        # Phase 2: Run 7-layer Gemini AI analysis
+        try:
+            analysis = gemini_analyzer.analyze_paper(sections)
+        except Exception as e:
+            raise HTTPException(
+                status_code=503,
+                detail={"error": "Analysis service unavailable", "message": str(e)}
+            )
+
+        # Phase 2: Calculate weighted confidence score
+        score_result = scoring.calculate_score(analysis["layer_scores"])
+
+        # Return enriched response
+        return JSONResponse(content={
             "filename": file.filename,
             "sections": sections,
             "section_count": len([v for v in sections.values() if v.strip()]),
-            "warnings": warnings
-        }
+            "warnings": warnings,
+            "layer_scores": analysis["layer_scores"],
+            "layer_details": analysis["layer_details"],
+            "final_score": score_result["final_score"],
+            "grade": score_result["grade"],
+        })
 
     finally:
         # Clean up temporary file
