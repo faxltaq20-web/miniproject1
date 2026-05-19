@@ -13,6 +13,7 @@ import pdf_parser
 import section_detector
 import gemini_analyzer  # Phase 2
 import scoring          # Phase 2
+import citation_checker # Phase 3
 
 app = FastAPI(title="ResearchSense API", version="1.0.0")
 
@@ -81,7 +82,18 @@ async def analyze_paper(file: UploadFile = File(...)):
                 detail={"error": "Analysis service unavailable", "message": str(e)}
             )
 
-        # Phase 2: Calculate weighted confidence score
+        # Phase 3: Run citation extraction and CrossRef validation
+        citation_result = citation_checker.check_citations(sections.get("references", ""))
+
+        # Phase 3: Overwrite citations placeholder with real score
+        analysis["layer_scores"]["citations"] = citation_result["score"]
+        analysis["layer_details"]["citations"] = {
+            "score": citation_result["score"],
+            "issues": citation_result["issues"],
+            "suggestions": citation_result["suggestions"],
+        }
+
+        # Calculate weighted confidence score (now includes real citations score)
         score_result = scoring.calculate_score(analysis["layer_scores"])
 
         # Return enriched response
@@ -94,6 +106,13 @@ async def analyze_paper(file: UploadFile = File(...)):
             "layer_details": analysis["layer_details"],
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
+            "citation_result": {
+                "total_dois": citation_result["total_dois"],
+                "verified": citation_result["verified"],
+                "not_found": citation_result["not_found"],
+                "unreachable": citation_result["unreachable"],
+                "flagged_dois": citation_result["flagged_dois"],
+            },
         })
 
     finally:
