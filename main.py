@@ -2,7 +2,7 @@ import os
 import tempfile
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -14,6 +14,7 @@ import section_detector
 import gemini_analyzer  # Phase 2
 import scoring          # Phase 2
 import citation_checker # Phase 3
+import report_generator # Phase 4
 
 app = FastAPI(title="ResearchSense API", version="1.0.0")
 
@@ -122,6 +123,42 @@ async def analyze_paper(file: UploadFile = File(...)):
                 os.remove(tmp_file_path)
             except Exception:
                 pass
+
+@app.post("/report")
+async def generate_report(analysis: dict):
+    """
+    Accept the full /analyze JSON response body and return a downloadable PDF.
+    Does NOT re-run Gemini analysis or CrossRef validation.
+    One Gemini call is made inside report_generator for the verdict paragraph.
+    """
+    try:
+        buffer = report_generator.generate_pdf_report(
+            filename=analysis.get("filename", "paper.pdf"),
+            layer_scores=analysis.get("layer_scores", {}),
+            layer_details=analysis.get("layer_details", {}),
+            final_score=analysis.get("final_score", 0.0),
+            grade=analysis.get("grade", "F — Very Poor"),
+            citation_result=analysis.get("citation_result", {
+                "total_dois": 0, "verified": 0, "not_found": 0,
+                "unreachable": 0, "flagged_dois": [],
+            }),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "PDF generation failed", "message": str(e)}
+        )
+
+    buffer.seek(0)
+    safe_name = analysis.get("filename", "report").replace(".pdf", "")
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_report.pdf"'
+        }
+    )
+
 
 if __name__ == "__main__":
     import uvicorn
