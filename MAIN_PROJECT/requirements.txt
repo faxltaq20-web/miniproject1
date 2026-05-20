@@ -1,0 +1,8 @@
+google-genai
+pymupdf
+fastapi
+uvicorn
+python-multipart
+reportlab
+requests
+python-dotenv
