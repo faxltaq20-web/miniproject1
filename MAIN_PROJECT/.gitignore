@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# PDF outputs & test artifacts
+*_report.pdf
+*_data.json
+test_report*.pdf
+.~lock.*
+
+# Temp scripts (not needed in repo)
+append_log*.py
+verify_restructure.py
+list_models.py
+test_gemini.py
+
+# OS
+Thumbs.db
+.DS_Store

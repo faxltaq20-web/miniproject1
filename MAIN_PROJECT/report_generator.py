@@ -24,12 +24,8 @@ from reportlab.platypus import (
     Flowable, Paragraph, Spacer, Table, TableStyle,
 )
 
-from google import genai
-from dotenv import load_dotenv
-
-load_dotenv()
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Use the failover-capable LLM client from gemini_analyzer
+from gemini_analyzer import _call_llm_with_failover
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -59,32 +55,26 @@ MARGIN_B = 16 * mm   # bottom (space for footer)
 AVAIL_W  = W - 2 * MARGIN_H
 COL_W    = (AVAIL_W - 5 * mm) / 2
 
-# Max marks per parameter (must match scoring.py WEIGHTS)
+# Max marks per parameter (must match scoring.py WEIGHTS * 100)
 MAX_MARKS = {
-    "grammar":     15,
-    "structure":   15,
-    "methodology": 15,
-    "logic":       15,
-    "readability": 10,
-    "abstract":    10,
-    "conclusion":  10,
-    "citations":   10,
+    "structure_sections": 20,
+    "clarity_writing":    25,
+    "methodology_rigor":  25,
+    "evidence_claims":    20,
+    "citations":          10,
 }
 
 PARAM_LABELS = {
-    "grammar":     "Grammar & Language",
-    "structure":   "Structural Integrity",
-    "methodology": "Methodology Soundness",
-    "logic":       "Logical Consistency",
-    "readability": "Readability Score",
-    "abstract":    "Abstract Quality",
-    "conclusion":  "Conclusion Completeness",
-    "citations":   "Citation Quality",
+    "structure_sections": "Structure & Sections",
+    "clarity_writing":    "Clarity & Writing",
+    "methodology_rigor":  "Methodology Rigor",
+    "evidence_claims":    "Evidence & Claims",
+    "citations":          "Citations & References",
 }
 
 PARAM_ORDER = [
-    "grammar", "structure", "methodology", "logic",
-    "readability", "abstract", "conclusion", "citations",
+    "structure_sections", "clarity_writing", "methodology_rigor",
+    "evidence_claims", "citations",
 ]
 
 # Recommendation — exactly 4 fixed strings, no variation (R-01)
@@ -161,8 +151,8 @@ def _generate_verdict_paragraph(
     layer_details: dict,
 ) -> str:
     """
-    Gemini writes a 2–3 sentence summary paragraph.
-    Falls back to template if Gemini is unavailable.
+    LLM writes a 2–3 sentence summary paragraph using the failover client.
+    Falls back to template if all providers are unavailable.
     """
     sorted_layers = sorted(layer_scores.items(), key=lambda x: x[1])
     worst_two = sorted_layers[:2]
@@ -179,15 +169,14 @@ def _generate_verdict_paragraph(
         "You are writing a short verdict for an academic paper analysis report.\n"
         "Based on the scores below, write exactly 2-3 sentences summarising the paper's "
         "overall quality. Be specific, professional, and concise.\n"
-        "Do not repeat the grade or recommendation — those are shown separately.\n"
+        "Do not repeat the grade or recommendation \u2014 those are shown separately.\n"
         "Do not use bullet points. Plain prose only.\n\n"
         f"Final score: {final_score}/100 ({grade})\n"
         "Key issues found:\n" + "\n".join(f"- {i}" for i in top_issues)
     )
 
     try:
-        response = client.models.generate_content(model=MODEL, contents=prompt)
-        return response.text.strip()
+        return _call_llm_with_failover(prompt)
     except Exception:
         grade_letter = _get_grade_letter(grade)
         fallbacks = {
@@ -521,7 +510,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
             Paragraph(
                 f'<b>{score}</b><font size=8 color="#64748B"> / {total}</font>',
                 S('ps', fontSize=11, textColor=C_PRIMARY, alignment=TA_RIGHT)),
-        ]], colWidths=[COL_W * 0.62, COL_W * 0.38],
+        ]], colWidths=[COL_W * 0.55, COL_W * 0.45 - 16],
         style=TableStyle([
             ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
             ('TOPPADDING',    (0, 0), (-1, -1), 0),
@@ -606,16 +595,16 @@ def _build_param_grid(parameters):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _build_citation_section(citation_data):
-    """Build citation stats row + flagged DOIs table."""
+    """Build citation stats row + flagged items table."""
     flowables = []
-    total      = citation_data.get('total', 0)
+    total_refs = citation_data.get('total_refs', 0)
     verified   = citation_data.get('verified', 0)
     unverified = citation_data.get('unverified', 0)
-    success_pct = int((verified / total * 100) if total else 0)
+    success_pct = int((verified / total_refs * 100) if total_refs else 0)
 
-    if total == 0:
+    if total_refs == 0:
         flowables.append(Paragraph(
-            "No DOIs detected in the references section.",
+            "No references detected in the paper.",
             S('body', fontSize=10, textColor=C_MUTED),
         ))
         return flowables
@@ -638,8 +627,8 @@ def _build_citation_section(citation_data):
         ]))
 
     stats_table = Table([[
-        _stat_cell(total,             'TOTAL DOIs',    C_PRIMARY),
         _stat_cell(verified,          'VERIFIED',      C_SUCCESS),
+        _stat_cell(total_refs,        'TOTAL REFS',    C_PRIMARY),
         _stat_cell(unverified,        'UNVERIFIED',    C_DANGER),
         _stat_cell(f'{success_pct}%', 'SUCCESS RATE',  C_PRIMARY),
     ]], colWidths=[q, q, q, q],
@@ -654,22 +643,38 @@ def _build_citation_section(citation_data):
     flowables.append(stats_table)
     flowables.append(Spacer(1, 3 * mm))
 
-    # Flagged DOI rows
-    flagged = citation_data.get('flagged_dois', [])
-    if flagged:
-        doi_rows = []
-        for doi in flagged:
-            doi_rows.append([
-                Paragraph('<font color="#EF4444">*</font>',
+    # Flagged items with categories
+    flagged_items = citation_data.get('flagged_items', [])
+    if flagged_items:
+        flag_rows = []
+        CATEGORY_COLORS = {
+            'duplicate': HexColor('#F59E0B'),   # amber
+            'not_found': HexColor('#EF4444'),   # red
+            'missing':   HexColor('#8B5CF6'),   # purple
+        }
+        CATEGORY_LABELS = {
+            'duplicate': 'Duplicate',
+            'not_found': 'Not found',
+            'missing':   'Missing',
+        }
+        for item in flagged_items:
+            cat = item.get('category', 'not_found')
+            color = CATEGORY_COLORS.get(cat, C_DANGER)
+            label = CATEGORY_LABELS.get(cat, cat.title())
+            flag_rows.append([
+                Paragraph(f'<font color="{color.hexval()}">\u26a0</font>',
                           S('d', fontSize=9)),
-                Paragraph(f'<font face="Courier" size=9>{doi}</font>',
-                          S('dc')),
-                Paragraph('<b><font color="#EF4444" size=8>Not Found in CrossRef</font></b>',
-                          S('ds', alignment=TA_RIGHT)),
+                Paragraph(
+                    f'<b>{item.get("citation", "Unknown")}</b>',
+                    S('dc', fontSize=9)),
+                Paragraph(
+                    f'<b><font color="{color.hexval()}" size=7>{label}</font></b>'
+                    f' <font size=7 color="#64748B">\u00b7 {item.get("detail", "")}</font>',
+                    S('ds', fontSize=8)),
             ])
 
-        doi_table = Table(doi_rows,
-            colWidths=[8 * mm, AVAIL_W - 55 * mm, 47 * mm],
+        flag_table = Table(flag_rows,
+            colWidths=[8 * mm, 45 * mm, AVAIL_W - 53 * mm],
             style=TableStyle([
                 ('BACKGROUND',    (0, 0), (-1, -1), C_LIGHT),
                 ('LINEBELOW',     (0, 0), (-1, -2), 0.5, HexColor('#DDE8FF')),
@@ -680,7 +685,7 @@ def _build_citation_section(citation_data):
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
                 ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
             ]))
-        flowables.append(doi_table)
+        flowables.append(flag_table)
 
     return flowables
 
@@ -689,11 +694,54 @@ def _build_citation_section(citation_data):
 # Story Builder
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+def _build_detected_sections(detected_sections):
+    """Build a pill grid showing detected sections with confidence %."""
+    flowables = []
+    if not detected_sections:
+        flowables.append(Paragraph(
+            "No sections detected.",
+            S('body', fontSize=10, textColor=C_MUTED),
+        ))
+        return flowables
+
+    # Build pill-like entries in a table (3 columns)
+    pills = []
+    for name, confidence in detected_sections.items():
+        color = C_SUCCESS if confidence >= 85 else C_WARNING if confidence >= 70 else C_DANGER
+        pills.append(Paragraph(
+            f'<font color="{color.hexval()}">\u2713</font> '
+            f'<b>{name}</b> <font size=8 color="#64748B">{confidence}%</font>',
+            S('pill', fontSize=9, textColor=C_TEXT),
+        ))
+
+    # Layout in rows of 3
+    pill_rows = []
+    for i in range(0, len(pills), 3):
+        row = pills[i:i+3]
+        while len(row) < 3:
+            row.append(Paragraph('', S('empty')))
+        pill_rows.append(row)
+
+    col_w = AVAIL_W / 3
+    pill_table = Table(pill_rows, colWidths=[col_w, col_w, col_w],
+        style=TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), C_LIGHT),
+            ('BOX',           (0, 0), (-1, -1), 0.5, HexColor('#C7D8FF')),
+            ('TOPPADDING',    (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+    flowables.append(pill_table)
+    return flowables
+
+
 def _build_story(report_data):
     """Build the full PLATYPUS story (cover is handled by onPage callback)."""
     story = []
 
-    # ── Overall Score ──────────────────────────────────────────────
+    # ── Overall Score
     story.append(SectionHeader('O', 'Overall Score',
         'Composite score across all weighted evaluation parameters'))
     story.append(Spacer(1, 4 * mm))
@@ -706,17 +754,24 @@ def _build_story(report_data):
     ))
     story.append(Spacer(1, 7 * mm))
 
-    # ── Parameter Breakdown ────────────────────────────────────────
-    story.append(SectionHeader('*', 'Parameter Breakdown',
-        'Each parameter is weighted differently — total adds up to 100 marks'))
+    # ── Detected Sections
+    story.append(SectionHeader('S', 'Detected Sections',
+        'Sections identified in the paper with confidence scores'))
+    story.append(Spacer(1, 4 * mm))
+    story.extend(_build_detected_sections(report_data.get('detected_sections', {})))
+    story.append(Spacer(1, 7 * mm))
+
+    # ── Multi-Layer Analysis
+    story.append(SectionHeader('*', 'Multi-Layer Analysis',
+        '5 weighted dimensions \u2014 total adds up to 100 marks'))
     story.append(Spacer(1, 4 * mm))
     story.extend(_build_param_grid(report_data['parameters']))
 
-    # ── Citation Analysis + Verdict (new page) ─────────────────────
+    # ── Citation Check + Verdict (new page)
     story.append(PageBreak())
 
-    story.append(SectionHeader('+', 'Citation Analysis',
-        'DOI verification via CrossRef database'))
+    story.append(SectionHeader('+', 'Citation Check',
+        'Reference verification via CrossRef database'))
     story.append(Spacer(1, 4 * mm))
     story.extend(_build_citation_section(report_data['citations']))
     story.append(Spacer(1, 7 * mm))
@@ -743,6 +798,7 @@ def generate_pdf_report(
     final_score: float,
     grade: str,
     citation_result: dict,
+    detected_sections: dict = None,
 ) -> io.BytesIO:
     """
     Build the full themed PDF report and return as in-memory BytesIO buffer.
@@ -757,12 +813,12 @@ def generate_pdf_report(
     recommendation = RECOMMENDATION_MAP.get(grade_letter, RECOMMENDATION_MAP["F"])
     status = recommendation.replace("Recommendation: ", "")
 
-    # Generate Gemini verdict paragraph
+    # Generate LLM verdict paragraph
     verdict_text = _generate_verdict_paragraph(
         final_score, grade, layer_scores, layer_details,
     )
 
-    # Build parameter list (converted from raw 0–10 scores to earned/max marks)
+    # Build parameter list (converted from raw 0\u201310 scores to earned/max marks)
     parameters = []
     for key in PARAM_ORDER:
         max_m = MAX_MARKS[key]
@@ -780,7 +836,7 @@ def generate_pdf_report(
     # Build report_data dict (skill schema)
     report_data = {
         'paper_name':        filename,
-        'analysed_at':       datetime.now().strftime('%d %B %Y — %H:%M'),
+        'analysed_at':       datetime.now().strftime('%d %B %Y \u2014 %H:%M'),
         'score':             int(round(final_score)),
         'max_score':         100,
         'grade':             grade_letter,
@@ -789,12 +845,13 @@ def generate_pdf_report(
         'score_description': score_desc,
         'status':            status,
         'parameters':        parameters,
+        'detected_sections': detected_sections or {},
         'citations': {
-            'total':        citation_result.get('total_dois', 0),
-            'verified':     citation_result.get('verified', 0),
-            'unverified':   citation_result.get('not_found', 0)
-                            + citation_result.get('unreachable', 0),
-            'flagged_dois': citation_result.get('flagged_dois', []),
+            'total_refs':    citation_result.get('total_refs', 0),
+            'verified':      citation_result.get('verified', 0),
+            'unverified':    citation_result.get('not_found', 0)
+                             + citation_result.get('unreachable', 0),
+            'flagged_items': citation_result.get('flagged_items', []),
         },
         'verdict_text':     verdict_text,
         'recommendation':   status,

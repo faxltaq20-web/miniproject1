@@ -119,7 +119,7 @@ class TestCheckCitationsOffline:
         result = citation_checker.check_citations(text)
         # Assert
         assert result["score"] == 0.0
-        assert result["total_dois"] == 0
+        assert result["total_refs"] == 0
         assert result["verified"] == 0
         assert result["not_found"] == 0
         assert result["unreachable"] == 0
@@ -138,7 +138,7 @@ class TestCheckCitationsOffline:
         result = citation_checker.check_citations(text)
         # Assert
         assert result["score"] == 0.0
-        assert result["total_dois"] == 0
+        assert result["total_refs"] == 0
 
     def test_no_dois_in_text_returns_zero_score(self):
         # Arrange — references section but no DOIs
@@ -147,7 +147,7 @@ class TestCheckCitationsOffline:
         result = citation_checker.check_citations(text)
         # Assert
         assert result["score"] == 0.0
-        assert result["total_dois"] == 0
+        assert result["total_refs"] >= 1  # Has ref lines even without DOIs
 
     def test_no_dois_has_correct_issue_message(self):
         # Arrange / Act
@@ -158,8 +158,8 @@ class TestCheckCitationsOffline:
     def test_return_dict_has_all_required_keys(self):
         # Arrange
         required_keys = {
-            "score", "total_dois", "verified", "not_found",
-            "unreachable", "flagged_dois", "issues", "suggestions"
+            "score", "total_refs", "verified", "not_found",
+            "unreachable", "flagged_dois", "flagged_items", "issues", "suggestions"
         }
         # Act
         result = citation_checker.check_citations("")

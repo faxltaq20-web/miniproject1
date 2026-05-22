@@ -35,8 +35,8 @@ async def root():
 async def analyze_paper(file: UploadFile = File(...)):
     """
     Core processing endpoint.
-    Accepts a research paper PDF, extracts text, detects sections,
-    and returns a structured JSON response with detected sections and soft warnings.
+    Accepts a research paper PDF, runs the full 5-layer analysis pipeline,
+    and returns a structured JSON response.
     """
     # Validate file extension
     if not file.filename.lower().endswith(".pdf"):
@@ -65,8 +65,10 @@ async def analyze_paper(file: UploadFile = File(...)):
                 }
             )
 
-        # Detect sections using regex
-        sections = section_detector.detect_sections(text)
+        # Detect sections using regex (now returns sections + confidence)
+        detection_result = section_detector.detect_sections(text)
+        sections = detection_result["sections"]
+        detected_sections = detection_result["detected_sections"]
 
         # Generate soft warnings for missing key sections
         warnings = []
@@ -74,7 +76,7 @@ async def analyze_paper(file: UploadFile = File(...)):
             if not sections.get(s, "").strip():
                 warnings.append(s)
 
-        # Phase 2: Run 7-layer Gemini AI analysis
+        # Run 4-layer AI analysis
         try:
             analysis = gemini_analyzer.analyze_paper(sections)
         except Exception as e:
@@ -83,10 +85,13 @@ async def analyze_paper(file: UploadFile = File(...)):
                 detail={"error": "Analysis service unavailable", "message": str(e)}
             )
 
-        # Phase 3: Run citation extraction and CrossRef validation
-        citation_result = citation_checker.check_citations(sections.get("references", ""))
+        # Run citation extraction and CrossRef validation
+        citation_result = citation_checker.check_citations(
+            sections.get("references", ""),
+            full_text=text
+        )
 
-        # Phase 3: Overwrite citations placeholder with real score
+        # Fill citation score into analysis
         analysis["layer_scores"]["citations"] = citation_result["score"]
         analysis["layer_details"]["citations"] = {
             "score": citation_result["score"],
@@ -94,25 +99,26 @@ async def analyze_paper(file: UploadFile = File(...)):
             "suggestions": citation_result["suggestions"],
         }
 
-        # Calculate weighted confidence score (now includes real citations score)
+        # Calculate weighted confidence score
         score_result = scoring.calculate_score(analysis["layer_scores"])
 
         # Return enriched response
         return JSONResponse(content={
             "filename": file.filename,
-            "sections": sections,
-            "section_count": len([v for v in sections.values() if v.strip()]),
+            "detected_sections": detected_sections,
+            "section_count": len(detected_sections),
             "warnings": warnings,
             "layer_scores": analysis["layer_scores"],
             "layer_details": analysis["layer_details"],
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
             "citation_result": {
-                "total_dois": citation_result["total_dois"],
+                "total_refs": citation_result.get("total_refs", 0),
                 "verified": citation_result["verified"],
                 "not_found": citation_result["not_found"],
                 "unreachable": citation_result["unreachable"],
                 "flagged_dois": citation_result["flagged_dois"],
+                "flagged_items": citation_result.get("flagged_items", []),
             },
         })
 
@@ -128,8 +134,7 @@ async def analyze_paper(file: UploadFile = File(...)):
 async def generate_report(analysis: dict):
     """
     Accept the full /analyze JSON response body and return a downloadable PDF.
-    Does NOT re-run Gemini analysis or CrossRef validation.
-    One Gemini call is made inside report_generator for the verdict paragraph.
+    Does NOT re-run AI analysis or CrossRef validation.
     """
     try:
         buffer = report_generator.generate_pdf_report(
@@ -139,9 +144,10 @@ async def generate_report(analysis: dict):
             final_score=analysis.get("final_score", 0.0),
             grade=analysis.get("grade", "F — Very Poor"),
             citation_result=analysis.get("citation_result", {
-                "total_dois": 0, "verified": 0, "not_found": 0,
-                "unreachable": 0, "flagged_dois": [],
+                "total_refs": 0, "verified": 0, "not_found": 0,
+                "unreachable": 0, "flagged_dois": [], "flagged_items": [],
             }),
+            detected_sections=analysis.get("detected_sections", {}),
         )
     except Exception as e:
         raise HTTPException(

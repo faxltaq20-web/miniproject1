@@ -1,14 +1,15 @@
-# Weights per layer — must stay in sync with desirable.md parameter table
-# and the report_generator.py max-marks column in Phase 4.
+# Weights per layer — matches the reference UI layout:
+#   01 Structure & Sections  20%
+#   02 Clarity & Writing      25%
+#   03 Methodology Rigor      25%
+#   04 Evidence & Claims      20%
+#   05 Citations & References 10%
 WEIGHTS = {
-    "grammar":      0.15,
-    "structure":    0.15,
-    "methodology":  0.15,
-    "logic":        0.15,
-    "readability":  0.10,
-    "abstract":     0.10,
-    "conclusion":   0.10,
-    "citations":    0.10,
+    "structure_sections": 0.20,
+    "clarity_writing":    0.25,
+    "methodology_rigor":  0.25,
+    "evidence_claims":    0.20,
+    "citations":          0.10,
 }
 
 # Grade thresholds — ordered highest-first for short-circuit matching
@@ -27,8 +28,8 @@ def calculate_score(layer_scores: dict) -> dict:
 
     Args:
         layer_scores: dict mapping layer name (str) to raw score 0-10 (float).
-                      Expected keys: grammar, readability, abstract, structure,
-                      methodology, logic, conclusion, citations.
+                      Expected keys: structure_sections, clarity_writing,
+                      methodology_rigor, evidence_claims, citations.
                       Missing keys default to 0.
 
     Returns:
