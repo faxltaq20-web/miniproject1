@@ -1,71 +1,50 @@
+"""
+gemini_analyzer.py — Multi-key Gemini LLM client with automatic key rotation.
+
+Uses up to 5 Gemini API keys. If one key hits rate limits (429),
+automatically rotates to the next key. This gives 5× the free-tier quota.
+"""
+
 from google import genai
-from google.genai import types
-from openai import OpenAI
 import json
 import os
+import re
 import time
 import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─── Provider Setup ──────────────────────────────────────────────────────────
-# Both providers are initialized if credentials exist.
-# PRIMARY_PROVIDER controls which one is tried first.
-# If it fails, the other is used automatically as a fallback.
-# If only one set of credentials is provided, only that provider is available.
+# ─── Multi-Key Setup ─────────────────────────────────────────────────────────
+# Load up to 5 Gemini API keys from .env
+# Keys are tried in order: GEMINI_KEY_1 → GEMINI_KEY_2 → ... → GEMINI_KEY_5
 # ─────────────────────────────────────────────────────────────────────────────
 
-_gemini_client = None
-_gemini_model = None
-_openai_client = None
-_openai_model = None
+_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-# Try to initialize Gemini
-_gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-if _gemini_key:
-    try:
-        _gemini_client = genai.Client(api_key=_gemini_key)
-        _gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    except Exception as e:
-        print(f"   [Init] Gemini client init failed: {e}", file=sys.stderr)
+_clients = []
+for i in range(1, 6):
+    key = os.getenv(f"GEMINI_KEY_{i}", "").strip()
+    if key:
+        try:
+            client = genai.Client(api_key=key)
+            _clients.append((f"Key_{i}", client))
+        except Exception as e:
+            print(f"   [Init] GEMINI_KEY_{i} failed: {e}", file=sys.stderr)
 
-# Try to initialize OpenAI-compatible (OpenCode, DeepSeek, Groq, etc.)
-_openai_key = os.getenv("OPENAI_COMPATIBLE_API_KEY", "").strip()
-_openai_base = os.getenv("OPENAI_COMPATIBLE_BASE_URL", "").strip()
-if _openai_key and _openai_base:
-    try:
-        _openai_client = OpenAI(api_key=_openai_key, base_url=_openai_base)
-        _openai_model = os.getenv("OPENAI_COMPATIBLE_MODEL", "minimax-2.5")
-    except Exception as e:
-        print(f"   [Init] OpenAI-compatible client init failed: {e}", file=sys.stderr)
-
-# Determine primary/fallback order from env (default: openai_compatible first)
-_primary_pref = os.getenv("PRIMARY_PROVIDER", "openai_compatible").lower().strip()
-
-if _primary_pref == "gemini":
-    _providers = []
-    if _gemini_client:
-        _providers.append(("gemini", _gemini_client, _gemini_model))
-    if _openai_client:
-        _providers.append(("openai_compatible", _openai_client, _openai_model))
-else:
-    _providers = []
-    if _openai_client:
-        _providers.append(("openai_compatible", _openai_client, _openai_model))
-    if _gemini_client:
-        _providers.append(("gemini", _gemini_client, _gemini_model))
-
-if not _providers:
+if not _clients:
     raise RuntimeError(
-        "No LLM providers configured! "
-        "Set GEMINI_API_KEY and/or OPENAI_COMPATIBLE_API_KEY + OPENAI_COMPATIBLE_BASE_URL in your .env file."
+        "No Gemini API keys configured!\n"
+        "Add at least one key to your .env file:\n"
+        "  GEMINI_KEY_1=AIza...\n"
+        "  GEMINI_KEY_2=AIza...  (optional)\n"
+        "  ...up to GEMINI_KEY_5"
     )
 
-# Log what's available
-_names = [p[0] for p in _providers]
-print(f"   [LLM] Providers loaded: {' -> '.join(_names)} (primary -> fallback)", flush=True)
+print(f"   [LLM] {len(_clients)} Gemini key(s) loaded — model: {_MODEL}", flush=True)
 
+
+# ─── Constants ────────────────────────────────────────────────────────────────
 
 EMPTY_RESULT = {
     "score": 0,
@@ -80,6 +59,8 @@ FALLBACK_RESULT = {
 }
 
 
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
 def clean_json_text(text: str) -> str:
     """Strip markdown code block formatting if present."""
     text = text.strip()
@@ -93,81 +74,76 @@ def clean_json_text(text: str) -> str:
 
 
 def _parse_retry_delay(err_str: str) -> float:
-    """Extract the suggested retry delay (in seconds) from a Gemini API error message."""
-    import re
-    # Match patterns like: "retryDelay": "34s"  or  retry in 34.325106886s
-    match = re.search(r'retry(?:Delay["\s:]+["\']?|[_ ]in\s+)([\d.]+)s', err_str, re.IGNORECASE)
+    """Extract suggested retry delay (seconds) from a Gemini API error."""
+    match = re.search(r'retry(?:Delay["\s:]+["\'"]?|[_ ]in\s+)([\d.]+)s', err_str, re.IGNORECASE)
     if match:
         return float(match.group(1))
     return 0.0
 
 
-def _call_single_provider(provider_name: str, client, model: str, prompt: str,
-                           max_retries: int = 5, initial_delay: float = 5.0) -> str:
+# ─── Core LLM Call (key rotation) ────────────────────────────────────────────
+
+def _call_single_key(key_name: str, client, prompt: str,
+                     max_retries: int = 3, initial_delay: float = 5.0) -> str:
     """
-    Call one specific provider with retries + smart backoff.
-    Parses the API's suggested retry delay and waits accordingly.
-    Returns the raw text on success.
-    Raises the last exception on persistent failure.
+    Call Gemini with one specific key. Retries on transient errors.
+    Returns raw text on success. Raises on persistent failure.
     """
     delay = initial_delay
     for attempt in range(max_retries):
         try:
-            if provider_name == "openai_compatible":
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.1,
-                )
-                return response.choices[0].message.content.strip()
-            else:  # gemini
-                response = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
-                return response.text.strip()
+            response = client.models.generate_content(
+                model=_MODEL,
+                contents=prompt,
+            )
+            return response.text.strip()
         except Exception as e:
             err_str = str(e)
-            is_transient = any(code in err_str for code in
-                               ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]) \
-                           or "overloaded" in err_str.lower()
+            is_rate_limit = any(code in err_str for code in
+                                ["429", "RESOURCE_EXHAUSTED"])
+            is_transient = is_rate_limit or any(code in err_str for code in
+                                ["503", "UNAVAILABLE"]) or "overloaded" in err_str.lower()
+
+            if is_rate_limit:
+                # Don't retry on rate limit — rotate to next key instead
+                raise
 
             if is_transient and attempt < max_retries - 1:
-                # Use the API's suggested delay if available, otherwise use our backoff
                 api_delay = _parse_retry_delay(err_str)
                 wait_time = max(delay, api_delay + 2.0) if api_delay > 0 else delay
-
-                print(f"   [Retry] {provider_name} rate-limited. "
-                      f"Waiting {wait_time:.0f}s (attempt {attempt+1}/{max_retries})...",
-                      flush=True)
+                print(f"   [Retry] {key_name} error. Waiting {wait_time:.0f}s "
+                      f"(attempt {attempt+1}/{max_retries})...", flush=True)
                 time.sleep(wait_time)
-                delay = min(delay * 2.0, 120.0)  # Cap at 2 minutes
+                delay = min(delay * 2.0, 60.0)
             else:
-                raise  # Let failover handle it
+                raise
 
 
 def _call_llm_with_failover(prompt: str) -> str:
     """
-    Try each provider in order. If the primary succeeds, return immediately.
-    If it fails after retries, automatically fall back to the next provider.
+    Try each Gemini key in order. If one key hits 429, rotate to next.
+    Returns raw text on first success.
     """
     last_error = None
-    for provider_name, client, model in _providers:
+    for key_name, client in _clients:
         try:
-            return _call_single_provider(provider_name, client, model, prompt)
+            return _call_single_key(key_name, client, prompt)
         except Exception as e:
             last_error = e
-            if len(_providers) > 1:
-                print(f"   [Failover] {provider_name} failed. Switching to next provider...",
-                      file=sys.stderr)
-    # All providers exhausted
-    raise last_error
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                print(f"   [Rotate] {key_name} quota exhausted → trying next key...", flush=True)
+            else:
+                print(f"   [Rotate] {key_name} failed → trying next key...", flush=True)
+
+    raise RuntimeError(f"All {len(_clients)} Gemini keys exhausted: {last_error}")
 
 
 def _call_gemini(prompt: str) -> dict:
     """
-    Call the LLM with failover. On invalid JSON, retry with strict prompt.
-    On persistent failure, return FALLBACK_RESULT instead of crashing.
+    Call Gemini with key rotation. Parse JSON response.
+    On invalid JSON, retry with strict prompt.
+    On persistent failure, return FALLBACK_RESULT.
     """
     try:
         raw_text = _call_llm_with_failover(prompt)
@@ -186,102 +162,18 @@ def _call_gemini(prompt: str) -> dict:
         except (json.JSONDecodeError, Exception):
             return FALLBACK_RESULT
     except Exception as e:
-        print(f"   [Error] All LLM providers failed: {e}", file=sys.stderr)
+        print(f"   [Error] All Gemini keys failed: {e}", file=sys.stderr)
         return FALLBACK_RESULT
 
 
-
-def analyze_structure_sections(text: str) -> dict:
-    """Layer 01 — Structure & Sections (20%)."""
-    if not text.strip():
-        return EMPTY_RESULT
-    prompt = f"""Evaluate the structural integrity and section organization of this academic paper.
-Consider:
-- Completeness of standard academic structure (Abstract, Introduction, Related Work, Methodology, Results, Discussion, Conclusion, References)
-- Logical flow and transitions between sections
-- Section balance (no section is disproportionately short or long)
-- Proper section ordering and hierarchy
-
-Return ONLY a JSON object with exactly these three fields:
-{{"score": <integer 0-10>, "issues": [<list of specific structural problems found, minimum 1>], "suggestions": [<list of specific improvements, minimum 1>]}}
-
-Paper content:
-{text[:5000]}"""
-    return _call_gemini(prompt)
-
-
-def analyze_clarity_writing(text: str) -> dict:
-    """Layer 02 — Clarity & Writing (25%)."""
-    if not text.strip():
-        return EMPTY_RESULT
-    prompt = f"""Evaluate the clarity and writing quality of this academic text.
-Consider:
-- Grammar correctness and language accuracy
-- Sentence structure and readability
-- Vocabulary appropriateness for academic writing
-- Coherence and flow within paragraphs
-- Precision of technical terminology
-- Absence of ambiguity and vagueness
-
-Return ONLY a JSON object with exactly these three fields:
-{{"score": <integer 0-10>, "issues": [<list of specific clarity/writing problems found, minimum 1>], "suggestions": [<list of specific improvements, minimum 1>]}}
-
-Text:
-{text[:4000]}"""
-    return _call_gemini(prompt)
-
-
-def analyze_methodology_rigor(text: str) -> dict:
-    """Layer 03 — Methodology Rigor (25%)."""
-    if not text.strip():
-        return EMPTY_RESULT
-    prompt = f"""Evaluate the methodology rigor of this academic paper.
-Consider:
-- Experimental design and reproducibility
-- Dataset description and justification
-- Evaluation metrics and their appropriateness
-- Baseline comparisons and statistical significance
-- Threats to validity and limitations acknowledged
-- Sufficient detail for replication
-
-Return ONLY a JSON object with exactly these three fields:
-{{"score": <integer 0-10>, "issues": [<list of specific methodology weaknesses, minimum 1>], "suggestions": [<list of specific improvements, minimum 1>]}}
-
-Paper content:
-{text[:4000]}"""
-    return _call_gemini(prompt)
-
-
-def analyze_evidence_claims(text: str) -> dict:
-    """Layer 04 — Evidence & Claims (20%)."""
-    if not text.strip():
-        return EMPTY_RESULT
-    prompt = f"""Evaluate the evidence and claims in this academic paper.
-Consider:
-- Whether claims are supported by evidence and data
-- Whether conclusions logically follow from results
-- Presence of unsupported or overgeneralized claims
-- Consistency between abstract claims and actual findings
-- Completeness of the conclusion (limitations, future work)
-- Absence of contradictions between sections
-
-Return ONLY a JSON object with exactly these three fields:
-{{"score": <integer 0-10>, "issues": [<list of specific evidence/claims problems found, minimum 1>], "suggestions": [<list of specific improvements, minimum 1>]}}
-
-Paper content:
-{text[:5000]}"""
-    return _call_gemini(prompt)
-
+# ─── Paper Analysis (single-prompt, all 4 layers) ────────────────────────────
 
 def analyze_paper(sections: dict) -> dict:
     """
-    Run all 4 LLM analysis layers on the given sections dict.
+    Run all 4 analysis layers in a SINGLE LLM call.
     (The 5th layer — Citations — is handled separately by citation_checker.py)
 
-    Args:
-        sections: dict with keys: abstract, introduction, methodology,
-                  results, discussion, conclusion, references, related_work
-                  (empty string "" if section was not detected)
+    Uses 1 API call instead of 4, preserving quota.
 
     Returns:
         {
@@ -292,62 +184,88 @@ def analyze_paper(sections: dict) -> dict:
                 "evidence_claims":    {"score": int, "issues": [str], "suggestions": [str]},
             },
             "layer_scores": {
-                "structure_sections": float,  # 0-10
+                "structure_sections": float,
                 "clarity_writing": float,
                 "methodology_rigor": float,
                 "evidence_claims": float,
-                "citations": float            # 0.0 placeholder — citation_checker fills this
+                "citations": float   # 0.0 placeholder — citation_checker fills this
             }
         }
     """
-    # Build full text for layers that need the whole document
     full_text = " ".join([v for v in sections.values() if v.strip()])
 
-    # Clarity checks introduction + methodology (most writing-intensive sections)
-    clarity_text = (
-        sections.get("introduction", "") + " " + sections.get("methodology", "")
-    ).strip() or full_text
+    if not full_text.strip():
+        empty = {"score": 0, "issues": ["No content found."], "suggestions": ["Provide paper content."]}
+        return {
+            "layer_details": {k: empty for k in
+                ["structure_sections", "clarity_writing", "methodology_rigor", "evidence_claims"]},
+            "layer_scores": {
+                "structure_sections": 0.0, "clarity_writing": 0.0,
+                "methodology_rigor": 0.0, "evidence_claims": 0.0, "citations": 0.0,
+            }
+        }
 
-    # Methodology uses methodology + results sections
-    methodology_text = (
-        sections.get("methodology", "") + " " + sections.get("results", "")
-    ).strip() or full_text
+    prompt = f"""You are an academic paper reviewer. Evaluate the following research paper across 4 dimensions.
+For EACH dimension, provide a score (0-10), a list of specific issues found (minimum 1), and a list of specific suggestions (minimum 1).
 
-    # Evidence uses results + discussion + conclusion
-    evidence_text = (
-        sections.get("results", "") + " " +
-        sections.get("discussion", "") + " " +
-        sections.get("conclusion", "")
-    ).strip() or full_text
+DIMENSION 1 — Structure & Sections (evaluate):
+- Completeness of standard academic structure (Abstract, Introduction, Related Work, Methodology, Results, Discussion, Conclusion, References)
+- Logical flow and transitions between sections
+- Section balance and proper ordering
 
-    print("   ↳ [1/4] Analyzing structure & sections...", flush=True)
-    structure_res = analyze_structure_sections(full_text)
-    time.sleep(3.0)
+DIMENSION 2 — Clarity & Writing (evaluate):
+- Grammar correctness and language accuracy
+- Sentence structure and readability
+- Vocabulary appropriateness for academic writing
+- Coherence and flow within paragraphs
 
-    print("   ↳ [2/4] Analyzing clarity & writing...", flush=True)
-    clarity_res = analyze_clarity_writing(clarity_text)
-    time.sleep(3.0)
+DIMENSION 3 — Methodology Rigor (evaluate):
+- Experimental design and reproducibility
+- Dataset description and justification
+- Evaluation metrics and baseline comparisons
+- Sufficient detail for replication
 
-    print("   ↳ [3/4] Analyzing methodology rigor...", flush=True)
-    methodology_res = analyze_methodology_rigor(methodology_text)
-    time.sleep(3.0)
+DIMENSION 4 — Evidence & Claims (evaluate):
+- Whether claims are supported by evidence and data
+- Whether conclusions logically follow from results
+- Presence of unsupported or overgeneralized claims
+- Consistency between abstract claims and actual findings
 
-    print("   ↳ [4/4] Analyzing evidence & claims...", flush=True)
-    evidence_res = analyze_evidence_claims(evidence_text)
+Return ONLY a JSON object with exactly this structure (no markdown, no extra text):
+{{
+  "structure_sections": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
+  "clarity_writing": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
+  "methodology_rigor": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
+  "evidence_claims": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}}
+}}
 
-    layer_details = {
-        "structure_sections": structure_res,
-        "clarity_writing":    clarity_res,
-        "methodology_rigor":  methodology_res,
-        "evidence_claims":    evidence_res,
-    }
+Paper content:
+{full_text[:8000]}"""
 
-    # Extract scores; default to 0 if missing
+    print("   ↳ Running multi-layer analysis (single pass)...", flush=True)
+    raw = _call_gemini(prompt)
+
+    layer_keys = ["structure_sections", "clarity_writing", "methodology_rigor", "evidence_claims"]
+
+    if all(k in raw for k in layer_keys):
+        layer_details = {k: raw[k] for k in layer_keys}
+    else:
+        layer_details = {k: raw for k in layer_keys}
+
+    # Ensure each layer has required fields
+    for key in layer_keys:
+        layer = layer_details[key]
+        if not isinstance(layer, dict):
+            layer_details[key] = EMPTY_RESULT
+        else:
+            layer.setdefault("score", 0)
+            layer.setdefault("issues", ["No issues recorded."])
+            layer.setdefault("suggestions", ["No suggestions recorded."])
+
     layer_scores = {k: float(v.get("score", 0)) for k, v in layer_details.items()}
-    layer_scores["citations"] = 0.0  # citation_checker fills this
+    layer_scores["citations"] = 0.0
 
     return {
         "layer_details": layer_details,
         "layer_scores": layer_scores,
     }
-

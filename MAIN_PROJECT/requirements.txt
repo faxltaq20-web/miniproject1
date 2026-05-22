@@ -1,5 +1,4 @@
 google-genai
-openai
 pymupdf
 fastapi
 uvicorn
