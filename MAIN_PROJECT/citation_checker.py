@@ -160,17 +160,41 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     flagged_items = []
 
     if not dois:
+        # No DOIs found — give partial credit based on reference count
+        # Most papers have references even without DOIs (numbered style [1], [2]...)
+        if total_refs >= 16:
+            ref_score = 7.0
+        elif total_refs >= 6:
+            ref_score = 5.0
+        elif total_refs >= 1:
+            ref_score = 3.0
+        else:
+            ref_score = 0.0
+
+        issues = ["No DOIs found in references section."]
+        if ref_score > 0:
+            issues.append(
+                f"Partial score ({ref_score}/10) awarded based on {total_refs} reference entries detected."
+            )
+
+        # Check for duplicates even without DOIs
+        duplicate_flags = _detect_duplicates(references_text)
+        if duplicate_flags:
+            issues.append(f"{len(duplicate_flags)} duplicate reference(s) detected.")
+            ref_score = max(ref_score - 1.0, 0.0)
+
         return {
-            "score": 0.0,
+            "score": ref_score,
             "total_refs": total_refs,
             "verified": 0,
             "not_found": 0,
             "unreachable": 0,
             "flagged_dois": [],
-            "flagged_items": [],
-            "issues": ["No DOIs found in references section."],
+            "flagged_items": duplicate_flags,
+            "issues": issues,
             "suggestions": [
-                "Include DOIs for all cited works to improve citation verifiability."
+                "Include DOIs for all cited works to improve citation verifiability.",
+                "Papers with verifiable DOIs receive higher citation scores."
             ],
         }
 

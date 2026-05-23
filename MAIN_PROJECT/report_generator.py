@@ -26,6 +26,22 @@ from reportlab.platypus import (
 
 # Use the failover-capable LLM client from gemini_analyzer
 from gemini_analyzer import _call_llm_with_failover
+import html as _html
+
+
+def _sanitize(text: str) -> str:
+    """Escape text for safe use inside ReportLab Paragraph XML.
+    
+    Strips markdown bold markers (**), escapes HTML entities,
+    and removes stray HTML-like tags that break ReportLab's parser.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    # Remove markdown bold markers
+    text = text.replace('**', '')
+    # Escape HTML entities (< > & etc.)
+    text = _html.escape(text, quote=False)
+    return text
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -528,7 +544,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for issue in issues:
         content.append(Paragraph(
             f'<font color="#EF4444" size=7><b>ISSUE:</b></font>  '
-            f'<font size=8 color="#64748B">{issue}</font>',
+            f'<font size=8 color="#64748B">{_sanitize(issue)}</font>',
             S('issue', leading=11),
         ))
 
@@ -536,7 +552,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for sug in suggestions:
         content.append(Paragraph(
             f'<font color="#10B981" size=7><b>FIX:</b></font>  '
-            f'<font size=8 color="#64748B">{sug}</font>',
+            f'<font size=8 color="#64748B">{_sanitize(sug)}</font>',
             S('fix', leading=11),
         ))
 
@@ -665,11 +681,11 @@ def _build_citation_section(citation_data):
                 Paragraph(f'<font color="{color.hexval()}">\u26a0</font>',
                           S('d', fontSize=9)),
                 Paragraph(
-                    f'<b>{item.get("citation", "Unknown")}</b>',
+                    f'<b>{_sanitize(item.get("citation", "Unknown"))}</b>',
                     S('dc', fontSize=9)),
                 Paragraph(
-                    f'<b><font color="{color.hexval()}" size=7>{label}</font></b>'
-                    f' <font size=7 color="#64748B">\u00b7 {item.get("detail", "")}</font>',
+                    f'<b><font color="{color.hexval()}" size=7>{_sanitize(label)}</font></b>'
+                    f' <font size=7 color="#64748B">\u00b7 {_sanitize(item.get("detail", ""))}</font>',
                     S('ds', fontSize=8)),
             ])
 

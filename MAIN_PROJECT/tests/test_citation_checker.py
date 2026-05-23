@@ -140,14 +140,14 @@ class TestCheckCitationsOffline:
         assert result["score"] == 0.0
         assert result["total_refs"] == 0
 
-    def test_no_dois_in_text_returns_zero_score(self):
-        # Arrange — references section but no DOIs
+    def test_no_dois_in_text_returns_partial_score(self):
+        # Arrange — references section but no DOIs → partial credit
         text = "Smith, J. (2020). A great paper. Journal of Things, 1(1), 1-10."
         # Act
         result = citation_checker.check_citations(text)
-        # Assert
-        assert result["score"] == 0.0
-        assert result["total_refs"] >= 1  # Has ref lines even without DOIs
+        # Assert — 1 ref line = partial credit (3.0)
+        assert result["score"] == 3.0
+        assert result["total_refs"] >= 1
 
     def test_no_dois_has_correct_issue_message(self):
         # Arrange / Act

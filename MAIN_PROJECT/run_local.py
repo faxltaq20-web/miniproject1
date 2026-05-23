@@ -27,6 +27,28 @@ LAYER_DISPLAY = {
 }
 
 
+def save_file_safely(base_name: str, content, is_binary: bool = True) -> str:
+    """Saves content to base_name. If base_name is locked (PermissionError),
+    appends a numeric suffix (_v1, _v2, etc.) until it can write successfully.
+    Returns the actual filename written."""
+    name, ext = os.path.splitext(base_name)
+    suffix = 0
+    while True:
+        curr_name = f"{name}_v{suffix}{ext}" if suffix > 0 else base_name
+        try:
+            mode = 'wb' if is_binary else 'w'
+            with open(curr_name, mode) as f:
+                if is_binary:
+                    f.write(content)
+                else:
+                    json.dump(content, f, indent=4)
+            return curr_name
+        except PermissionError:
+            suffix += 1
+            if suffix > 20: # cap to prevent infinite loop
+                raise
+
+
 def run_pipeline(pdf_path: str):
     """Run the entire ResearchSense pipeline on a local PDF file."""
 
@@ -99,22 +121,33 @@ def run_pipeline(pdf_path: str):
         print(f"❌ Report generation failed: {e}")
         return
 
-    # Save PDF locally
-    output_pdf_name = filename.replace('.pdf', '_report.pdf')
-    with open(output_pdf_name, 'wb') as f:
-        f.write(pdf_buffer.getvalue())
+    # Save PDF locally with lock protection
+    pdf_base_name = filename.replace('.pdf', '_report.pdf')
+    try:
+        output_pdf_name = save_file_safely(pdf_base_name, pdf_buffer.getvalue(), is_binary=True)
+        if output_pdf_name != pdf_base_name:
+            print(f"⚠️  Warning: '{pdf_base_name}' was locked. Saved as '{output_pdf_name}' instead.")
+    except Exception as e:
+        print(f"❌ Failed to save PDF: {e}")
+        output_pdf_name = "None"
 
-    # Save JSON locally
-    output_json_name = filename.replace('.pdf', '_data.json')
-    with open(output_json_name, 'w') as f:
-        json.dump({
+    # Save JSON locally with lock protection
+    json_base_name = filename.replace('.pdf', '_data.json')
+    try:
+        json_data = {
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
             "detected_sections": detected_sections,
             "citations": citation_result,
             "layer_scores": analysis["layer_scores"],
             "layer_details": analysis["layer_details"]
-        }, f, indent=4)
+        }
+        output_json_name = save_file_safely(json_base_name, json_data, is_binary=False)
+        if output_json_name != json_base_name:
+            print(f"⚠️  Warning: '{json_base_name}' was locked. Saved as '{output_json_name}' instead.")
+    except Exception as e:
+        print(f"❌ Failed to save JSON data: {e}")
+        output_json_name = "None"
 
     # ── Results ───────────────────────────────────────────────────────
     print("\n" + "─" * 55)

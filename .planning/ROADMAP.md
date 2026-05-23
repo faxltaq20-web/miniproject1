@@ -8,6 +8,7 @@
 | [Phase 2: AI Analysis Engine](#phase-2-ai-analysis-engine) | Implement the 7-layer Gemini AI evaluations |
 | [Phase 3: Citations & Scoring](#phase-3-citations--scoring) | Validate references and compute final weighted scores |
 | [Phase 4: Reporting & Web UI](#phase-4-reporting--web-ui) | Generate PDF reports and wire up the final UI |
+| [Phase 6: Output Quality Optimization](#phase-6-output-quality-optimization) | Improve analysis accuracy, report quality, and pipeline robustness |
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -101,3 +102,31 @@ Plans:
 2. A single-page HTML UI exists with drag-and-drop file support
 3. UI presents the score breakdown visually to the user
 4. Pre-cached sample results available as demo-day backup
+
+## Phase 6: Output Quality Optimization
+**Goal:** Improve analysis accuracy, report quality, and overall pipeline robustness
+
+**Depends on:** Phase 1-4 (core pipeline must be functional)
+
+**Requirements Mapped:**
+- OPT-01: Improve LLM prompt quality for more consistent, detailed scoring
+- OPT-02: Better handling of non-standard paper structures (review papers, short papers, theses)
+- OPT-03: Enhance PDF report layout and readability (spacing, fonts, visual hierarchy)
+- OPT-04: Improve citation analysis for papers without DOIs (title-based lookup)
+- OPT-05: Add error recovery and graceful degradation for edge cases
+- OPT-06: Optimize text truncation strategy for LLM context window usage
+
+**Success Criteria:**
+1. Analysis produces consistent scores across repeated runs on the same paper
+2. Papers with non-standard sections (e.g., "Background" instead of "Related Work") are correctly parsed
+3. PDF report has no clipping, overflow, or layout issues
+4. Citation checker handles papers with 0 DOIs gracefully (title-based fallback)
+5. Pipeline completes without crashing on any valid PDF input
+6. LLM prompt uses full context window efficiently (no wasted tokens)
+
+Plans:
+- [ ] Plan 1: Prompt Engineering & Scoring Consistency
+- [ ] Plan 2: Non-Standard Paper Handling
+- [ ] Plan 3: PDF Report Polish
+- [ ] Plan 4: Citation Fallback for Zero-DOI Papers
+- [ ] Plan 5: Error Recovery & Edge Cases
