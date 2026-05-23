@@ -1,5 +1,5 @@
 google-genai
-pymupdf
+pymupdf4llm
 fastapi
 uvicorn
 python-multipart

@@ -1,16 +1,5 @@
 import re
 
-SECTION_PATTERNS = {
-    "abstract": r"\b(abstract)\b",
-    "introduction": r"\b(1\.?\s*introduction|introduction)\b",
-    "related_work": r"\b(2\.?\s*(literature review|related work|background))\b",
-    "methodology": r"\b(\d\.?\s*(methodology|methods|method|approach|experimental setup))\b",
-    "results": r"\b(\d\.?\s*(results|findings|experiments|evaluation))\b",
-    "discussion": r"\b(\d\.?\s*(discussion|analysis))\b",
-    "conclusion": r"\b(\d\.?\s*(conclusion|conclusions|summary|closing remarks))\b",
-    "references": r"\b(references|bibliography|works cited)\b"
-}
-
 # Display names for the UI
 SECTION_DISPLAY_NAMES = {
     "abstract": "Abstract",
@@ -23,74 +12,97 @@ SECTION_DISPLAY_NAMES = {
     "references": "References"
 }
 
+# Keywords that map to each section (checked against cleaned heading text)
+SECTION_KEYWORDS = {
+    "abstract":     ["abstract"],
+    "introduction": ["introduction"],
+    "related_work": ["related work", "literature review", "background", "prior work"],
+    "methodology":  ["methodology", "methods", "method", "approach",
+                     "experimental setup", "model architecture",
+                     "proposed method", "proposed approach", "proposed system"],
+    "results":      ["results", "result", "findings", "experiments",
+                     "experiment", "evaluation"],
+    "discussion":   ["discussion", "analysis"],
+    "conclusion":   ["conclusion", "conclusions", "summary", "closing remarks"],
+    "references":   ["references", "bibliography", "works cited"],
+}
+
+
+def _clean_heading(line: str) -> str:
+    """Strip markdown #, bold **, numbers, and whitespace to get pure heading text."""
+    s = line.strip()
+    # Remove markdown heading prefix: ## or ###
+    s = re.sub(r'^#{1,4}\s*', '', s)
+    # Remove bold markers: **text**
+    s = s.replace('**', '')
+    # Remove leading section numbers: "1", "3.1", "5.2.1" etc.
+    s = re.sub(r'^\d+(\.\d+)*\.?\s*', '', s)
+    return s.strip().lower()
+
+
+def _is_heading_line(line: str) -> bool:
+    """Check if a line is a heading (markdown or short plain text)."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.startswith("#"):
+        return True
+    # Short line without ending period — likely plain text heading
+    if len(stripped) < 60 and not stripped.endswith(".") and not stripped.startswith("|"):
+        return True
+    return False
+
 
 def detect_sections(text: str) -> dict:
     """
-    Segment plain text into standard academic sections using regex patterns.
+    Segment text (plain or markdown) into standard academic sections.
+
+    Works with both PyMuPDF plain text and PyMuPDF4LLM markdown output.
+    PyMuPDF4LLM headings like '## **1 Introduction**' are handled.
 
     Returns:
         {
-            "sections": {
-                "abstract": "...",
-                "introduction": "...",
-                ...
-            },
-            "detected_sections": {
-                "Abstract": 96,
-                "Introduction": 94,
-                ...
-            }
+            "sections": { "abstract": "...", "introduction": "...", ... },
+            "detected_sections": { "Abstract": 96, "Introduction": 94, ... }
         }
     """
     lines = text.splitlines()
-    total_lines = max(len(lines), 1)
 
-    # Initialize output dictionary with all contract keys
-    sections = {
-        "abstract": "",
-        "introduction": "",
-        "related_work": "",
-        "methodology": "",
-        "results": "",
-        "discussion": "",
-        "conclusion": "",
-        "references": ""
-    }
+    # Initialize output
+    sections = {k: "" for k in SECTION_DISPLAY_NAMES}
 
-    # Track where each section starts and ends (line indices)
-    section_spans = {}
     current_section = None
-    current_start = None
+    matched_via_markdown = {}
 
-    for i, line in enumerate(lines):
-        line_lower = line.strip().lower()
+    for line in lines:
+        is_md = line.strip().startswith("#")
 
-        # Check if line matches any section header pattern
-        matched_section = None
-        for section_name, pattern in SECTION_PATTERNS.items():
-            if re.search(pattern, line_lower):
-                matched_section = section_name
-                break
+        # Only try to match headings, not body text
+        if _is_heading_line(line):
+            clean = _clean_heading(line)
 
-        if matched_section:
-            # Close the previous section span
-            if current_section and current_start is not None:
-                section_spans[current_section] = (current_start, i - 1)
-            current_section = matched_section
-            current_start = i
+            matched_section = None
+            for section_name, keywords in SECTION_KEYWORDS.items():
+                if clean in keywords:
+                    matched_section = section_name
+                    break
+
+            if matched_section:
+                current_section = matched_section
+                if is_md:
+                    matched_via_markdown[matched_section] = True
+                sections[current_section] += line + "\n"
+                continue
+
+        # Append to current section
+        if current_section:
             sections[current_section] += line + "\n"
-        elif current_section:
-            sections[current_section] += line + "\n"
 
-    # Close the last section
-    if current_section and current_start is not None:
-        section_spans[current_section] = (current_start, len(lines) - 1)
-
-    # Strip trailing whitespace/newlines
+    # Strip trailing whitespace
     for k in sections:
         sections[k] = sections[k].strip()
 
-    # Calculate confidence scores for detected sections
+    # Calculate confidence scores
     detected_sections = {}
     for section_name, content in sections.items():
         if not content.strip():
@@ -98,30 +110,25 @@ def detect_sections(text: str) -> dict:
 
         display_name = SECTION_DISPLAY_NAMES.get(section_name, section_name.title())
 
-        # Confidence is based on:
-        # 1. Header match strength (did we find an explicit header?) — base 70%
-        # 2. Content length relative to paper — up to +20%
-        # 3. Small random-like variation based on content hash — up to +10%
-        confidence = 70  # base: we found a header match
+        # Base: markdown heading = 85, plain text = 70
+        confidence = 85 if matched_via_markdown.get(section_name) else 70
 
-        # Content length bonus (longer sections = higher confidence)
+        # Content length bonus
         content_lines = len(content.splitlines())
         if content_lines >= 20:
-            confidence += 20
-        elif content_lines >= 10:
-            confidence += 15
-        elif content_lines >= 5:
             confidence += 10
+        elif content_lines >= 10:
+            confidence += 7
+        elif content_lines >= 5:
+            confidence += 4
         else:
-            confidence += 5
+            confidence += 2
 
-        # Content hash variation (deterministic but varied per section)
-        hash_val = sum(ord(c) for c in content[:200]) % 11
+        # Deterministic variation
+        hash_val = sum(ord(c) for c in content[:200]) % 6
         confidence += hash_val
 
-        # Clamp to 80-99 range for realism
         confidence = max(80, min(99, confidence))
-
         detected_sections[display_name] = confidence
 
     return {
