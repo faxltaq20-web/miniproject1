@@ -125,8 +125,8 @@ Plans:
 6. LLM prompt uses full context window efficiently (no wasted tokens)
 
 Plans:
-- [ ] Plan 1: Prompt Engineering & Scoring Consistency
-- [ ] Plan 2: Non-Standard Paper Handling
-- [ ] Plan 3: PDF Report Polish
-- [ ] Plan 4: Citation Fallback for Zero-DOI Papers
-- [ ] Plan 5: Error Recovery & Edge Cases
+- [x] Plan 1: Prompt Engineering & Scoring Consistency
+- [x] Plan 2: Non-Standard Paper Handling
+- [x] Plan 3: PDF Report Polish
+- [x] Plan 4: Citation Fallback for Zero-DOI Papers
+- [x] Plan 5: Error Recovery & Edge Cases

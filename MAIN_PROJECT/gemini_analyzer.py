@@ -192,9 +192,37 @@ def analyze_paper(sections: dict) -> dict:
             }
         }
     """
-    full_text = " ".join([v for v in sections.values() if v.strip()])
+    # ── Smart per-section text assembly (OPT-06) ──────────────────────
+    # Present sections in standard academic order with clear labels
+    # so the LLM can properly evaluate document structure.
+    SECTION_ORDER = [
+        ("abstract",     "ABSTRACT",        2000),
+        ("introduction", "INTRODUCTION",    2000),
+        ("related_work", "RELATED WORK",    1000),
+        ("methodology",  "METHODOLOGY",     2500),
+        ("results",      "RESULTS",         1500),
+        ("discussion",   "DISCUSSION",      1500),
+        ("conclusion",   "CONCLUSION",      1000),
+    ]
+    MAX_TOTAL = 12000  # stay within model context window with room for prompt
 
-    if not full_text.strip():
+    text_parts = []
+    total_chars = 0
+    for section_key, label, limit in SECTION_ORDER:
+        content = sections.get(section_key, "").strip()
+        if content:
+            chunk = content[:limit]
+            text_parts.append(f"[{label}]\n{chunk}")
+            total_chars += len(chunk) + len(label) + 3
+
+    # Fallback: if named sections are sparse, use the raw concatenation
+    if total_chars < 500:
+        full_text = " ".join([v for v in sections.values() if v.strip()])
+        assembled_text = full_text[:MAX_TOTAL]
+    else:
+        assembled_text = "\n\n".join(text_parts)[:MAX_TOTAL]
+
+    if not assembled_text.strip():
         empty = {"score": 0, "issues": ["No content found."], "suggestions": ["Provide paper content."]}
         return {
             "layer_details": {k: empty for k in
@@ -205,42 +233,53 @@ def analyze_paper(sections: dict) -> dict:
             }
         }
 
-    prompt = f"""You are an academic paper reviewer. Evaluate the following research paper across 4 dimensions.
-For EACH dimension, provide a score (0-10), a list of specific issues found (minimum 1), and a list of specific suggestions (minimum 1).
+    # ── Prompt with scoring rubric (OPT-01) ───────────────────────────
+    prompt = f"""You are an experienced academic paper reviewer. Evaluate the following research paper across 4 dimensions.
+For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 2), and a list of actionable suggestions (minimum 2).
 
-DIMENSION 1 — Structure & Sections (evaluate):
-- Completeness of standard academic structure (Abstract, Introduction, Related Work, Methodology, Results, Discussion, Conclusion, References)
-- Logical flow and transitions between sections
-- Section balance and proper ordering
+IMPORTANT: The paper content below is an excerpt — sections may be truncated for length. Evaluate based on what IS present, not what may be cut off. Do NOT penalize truncation artifacts.
 
-DIMENSION 2 — Clarity & Writing (evaluate):
-- Grammar correctness and language accuracy
+SCORING RUBRIC — use this to assign consistent scores:
+  9-10: Exceptional — publishable quality, no significant issues found in the content
+  7-8:  Good — minor issues that don't undermine the work's contribution
+  5-6:  Adequate — noticeable weaknesses but the core contribution is sound
+  3-4:  Weak — significant gaps that undermine the paper's credibility
+  1-2:  Poor — fundamental structural or methodological problems
+  0:    Section missing or completely inadequate
+
+DIMENSION 1 — Structure & Sections:
+- Are standard academic sections present? (Abstract, Introduction, Related Work, Methodology, Results, Conclusion, References)
+- Is there logical flow and transitions between sections?
+- Is section ordering and balance reasonable?
+
+DIMENSION 2 — Clarity & Writing:
+- Grammar correctness and language quality
 - Sentence structure and readability
 - Vocabulary appropriateness for academic writing
 - Coherence and flow within paragraphs
 
-DIMENSION 3 — Methodology Rigor (evaluate):
-- Experimental design and reproducibility
-- Dataset description and justification
-- Evaluation metrics and baseline comparisons
-- Sufficient detail for replication
+DIMENSION 3 — Methodology Rigor:
+- Is the experimental design described clearly?
+- Are datasets and evaluation metrics specified?
+- Are there baseline comparisons?
+- Is there sufficient detail for understanding the approach?
 
-DIMENSION 4 — Evidence & Claims (evaluate):
-- Whether claims are supported by evidence and data
-- Whether conclusions logically follow from results
-- Presence of unsupported or overgeneralized claims
-- Consistency between abstract claims and actual findings
+DIMENSION 4 — Evidence & Claims:
+- Are claims supported by evidence and data in the text?
+- Do conclusions logically follow from the results presented?
+- Are there unsupported or overgeneralized claims?
+- Is there consistency between abstract claims and findings?
 
 Return ONLY a JSON object with exactly this structure (no markdown, no extra text):
 {{
-  "structure_sections": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
-  "clarity_writing": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
-  "methodology_rigor": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}},
-  "evidence_claims": {{"score": <0-10>, "issues": ["..."], "suggestions": ["..."]}}
+  "structure_sections": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
+  "clarity_writing": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
+  "methodology_rigor": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
+  "evidence_claims": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}}
 }}
 
-Paper content:
-{full_text[:8000]}"""
+Paper content (excerpted):
+{assembled_text}"""
 
     print("   ↳ Running multi-layer analysis (single pass)...", flush=True)
     raw = _call_gemini(prompt)
@@ -262,7 +301,11 @@ Paper content:
             layer.setdefault("issues", ["No issues recorded."])
             layer.setdefault("suggestions", ["No suggestions recorded."])
 
-    layer_scores = {k: float(v.get("score", 0)) for k, v in layer_details.items()}
+    # Clamp scores to valid 0-10 range (OPT-01)
+    layer_scores = {
+        k: max(0.0, min(10.0, float(v.get("score", 0))))
+        for k, v in layer_details.items()
+    }
     layer_scores["citations"] = 0.0
 
     return {
