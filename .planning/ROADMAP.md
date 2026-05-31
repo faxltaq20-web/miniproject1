@@ -9,6 +9,8 @@
 | [Phase 3: Citations & Scoring](#phase-3-citations--scoring) | Validate references and compute final weighted scores |
 | [Phase 4: Reporting & Web UI](#phase-4-reporting--web-ui) | Generate PDF reports and wire up the final UI |
 | [Phase 6: Output Quality Optimization](#phase-6-output-quality-optimization) | Improve analysis accuracy, report quality, and pipeline robustness |
+| [Phase 7: Output Consistency and Overall Refinement](#phase-7-output-consistency-and-overall-refinement) | Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs |
+
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -130,3 +132,26 @@ Plans:
 - [x] Plan 3: PDF Report Polish
 - [x] Plan 4: Citation Fallback for Zero-DOI Papers
 - [x] Plan 5: Error Recovery & Edge Cases
+
+---
+
+## Phase 7: Output Consistency and Overall Refinement
+**Goal:** Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs for production readiness.
+
+**Depends on:** Phase 6 (optimization of the core pipeline must be completed and audited)
+
+**Requirements Mapped:**
+- OPT-01: Improve LLM prompt quality for more consistent, detailed scoring
+- OPT-03: Enhance PDF report layout and readability (spacing, fonts, visual hierarchy)
+- OPT-05: Add error recovery and graceful degradation for edge cases
+
+**Success Criteria:**
+1. LLM scoring output is highly consistent across multiple identical runs.
+2. Layout alignment, fonts, and spacing are polished across all report types and sizes.
+3. Enhanced robustness for complex PDFs with advanced failover mechanisms.
+
+Plans:
+- [ ] Plan 1: Deterministic Scoring & Few-Shot Prompting
+- [ ] Plan 2: Parallel Citation Title Verification
+- [ ] Plan 3: PDF Spacing, Formatting & Safe Keeping
+- [ ] Plan 4: API Pre-Flight & Health Checks

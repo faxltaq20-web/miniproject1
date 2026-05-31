@@ -1,6 +1,8 @@
 import re
+import difflib
 import requests
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
 # Max DOIs to validate per paper — avoids excessive CrossRef calls on large reference lists
 MAX_DOIS = 20
@@ -89,6 +91,115 @@ def _detect_duplicates(references_text: str) -> list:
     return flagged
 
 
+def _extract_title_from_ref(ref_line: str) -> str:
+    """
+    Extract a paper title from a bibliography reference line.
+
+    Strategy:
+    1. Strip leading numbering like [1], [2], 1., 2. etc.
+    2. Look for quoted text ("Title Here").
+    3. Otherwise, look for text between author-year and the journal/venue name.
+    """
+    # Strip numbering like [1], [2], 1., 2., (1), etc.
+    line = re.sub(r'^\s*(?:\[\d+\]|\(\d+\)|\d+[\.\)])\s*', '', ref_line).strip()
+
+    # Strategy 1: Look for quoted text
+    quoted = re.search(r'["\u201c](.+?)["\u201d]', line)
+    if quoted:
+        return quoted.group(1).strip()
+
+    # Strategy 2: Text between author-year and journal/venue
+    # Pattern: Author(s) (Year). Title. Journal/Conference...
+    match = re.search(
+        r'\(\d{4}\)\.?\s*(.+?)\.',
+        line
+    )
+    if match:
+        title = match.group(1).strip()
+        if len(title) > 10:
+            return title
+
+    # Strategy 3: Text after "Year." or "Year," up to next period
+    match = re.search(
+        r'\d{4}[\.\,]\s*(.+?)\.',
+        line
+    )
+    if match:
+        title = match.group(1).strip()
+        if len(title) > 10:
+            return title
+
+    return ""
+
+
+def _verify_title_semantic_scholar(title: str) -> bool:
+    """
+    Query Semantic Scholar API to verify whether a paper title exists.
+
+    Uses difflib.SequenceMatcher to compare the queried title with the
+    returned title. Considers it verified if similarity ratio >= 0.6.
+
+    Returns True if a sufficiently similar match is found, False otherwise.
+    """
+    if not title.strip():
+        return False
+
+    url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    params = {
+        "query": title,
+        "limit": 1,
+        "fields": "title"
+    }
+    try:
+        response = requests.get(url, params=params, timeout=3)
+        if response.status_code != 200:
+            return False
+        data = response.json()
+        papers = data.get("data", [])
+        if not papers:
+            return False
+        returned_title = papers[0].get("title", "")
+        ratio = difflib.SequenceMatcher(
+            None, title.lower(), returned_title.lower()
+        ).ratio()
+        return ratio >= 0.6
+    except (requests.RequestException, ValueError, KeyError):
+        return False
+
+
+def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
+    """
+    Verify reference titles against Semantic Scholar in parallel.
+
+    Extracts titles from up to `max_refs` reference lines and checks them
+    concurrently using a ThreadPoolExecutor with 5 workers.
+
+    Returns:
+        {"verified": int, "not_found": int, "checked": int}
+    """
+    # Extract titles from reference lines
+    titles = []
+    for line in ref_lines[:max_refs]:
+        title = _extract_title_from_ref(line)
+        if title:
+            titles.append(title)
+
+    if not titles:
+        return {"verified": 0, "not_found": 0, "checked": 0}
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(_verify_title_semantic_scholar, titles))
+
+    verified = sum(1 for r in results if r)
+    not_found = sum(1 for r in results if not r)
+
+    return {
+        "verified": verified,
+        "not_found": not_found,
+        "checked": len(titles)
+    }
+
+
 def _validate_doi(doi: str) -> str:
     """
     Validate a single DOI against CrossRef REST API.
@@ -160,21 +271,35 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     flagged_items = []
 
     if not dois:
-        # No DOIs found — give partial credit based on reference count
-        # Most papers have references even without DOIs (numbered style [1], [2]...)
-        if total_refs >= 16:
-            ref_score = 7.0
-        elif total_refs >= 6:
-            ref_score = 5.0
-        elif total_refs >= 1:
-            ref_score = 3.0
+        # No DOIs found — use parallel title verification via Semantic Scholar
+        verification = _verify_references_parallel(ref_lines)
+        verified_count = verification["verified"]
+        not_found_count = verification["not_found"]
+        checked_count = verification["checked"]
+
+        # Score based on verification ratio
+        if checked_count > 0:
+            ratio = verified_count / checked_count
+            if ratio >= 0.8:
+                ref_score = 10.0
+            elif ratio >= 0.5:
+                ref_score = 7.0
+            elif ratio >= 0.3:
+                ref_score = 5.0
+            else:
+                ref_score = 3.0
         else:
-            ref_score = 0.0
+            # No titles could be extracted — minimal credit for having references
+            ref_score = 3.0 if total_refs >= 1 else 0.0
 
         issues = ["No DOIs found in references section."]
-        if ref_score > 0:
+        if checked_count > 0:
             issues.append(
-                f"Partial score ({ref_score}/10) awarded based on {total_refs} reference entries detected."
+                f"Title verification: {verified_count}/{checked_count} references verified via Semantic Scholar."
+            )
+        else:
+            issues.append(
+                f"Could not extract titles from {total_refs} reference entries for verification."
             )
 
         # Check for duplicates even without DOIs
@@ -186,8 +311,8 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         return {
             "score": ref_score,
             "total_refs": total_refs,
-            "verified": 0,
-            "not_found": 0,
+            "verified": verified_count,
+            "not_found": not_found_count,
             "unreachable": 0,
             "flagged_dois": [],
             "flagged_items": duplicate_flags,

@@ -21,7 +21,7 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import simpleSplit
 from reportlab.platypus import (
     BaseDocTemplate, PageTemplate, Frame, NextPageTemplate, PageBreak,
-    Flowable, Paragraph, Spacer, Table, TableStyle,
+    Flowable, Paragraph, Spacer, Table, TableStyle, KeepTogether,
 )
 
 # Use the failover-capable LLM client from gemini_analyzer
@@ -41,6 +41,14 @@ def _sanitize(text: str) -> str:
     text = text.replace('**', '')
     # Escape HTML entities (< > & etc.)
     text = _html.escape(text, quote=False)
+    return text
+
+
+def _sanitize_and_truncate(text: str, max_len: int = 135) -> str:
+    """Sanitize text and truncate to max_len characters with '...' suffix."""
+    text = _sanitize(text)
+    if len(text) > max_len:
+        return text[:max_len] + '...'
     return text
 
 
@@ -544,7 +552,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for issue in issues:
         content.append(Paragraph(
             f'<font color="#EF4444" size=7><b>ISSUE:</b></font>  '
-            f'<font size=8 color="#64748B">{_sanitize(issue)}</font>',
+            f'<font size=8 color="#64748B">{_sanitize_and_truncate(issue)}</font>',
             S('issue', leading=11),
         ))
 
@@ -552,7 +560,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for sug in suggestions:
         content.append(Paragraph(
             f'<font color="#10B981" size=7><b>FIX:</b></font>  '
-            f'<font size=8 color="#64748B">{_sanitize(sug)}</font>',
+            f'<font size=8 color="#64748B">{_sanitize_and_truncate(sug)}</font>',
             S('fix', leading=11),
         ))
 
@@ -758,23 +766,27 @@ def _build_story(report_data):
     story = []
 
     # ── Overall Score
-    story.append(SectionHeader('O', 'Overall Score',
-        'Composite score across all weighted evaluation parameters'))
-    story.append(Spacer(1, 4 * mm))
-    story.append(ScoreHero(
-        score       = report_data['score'],
-        max_score   = report_data['max_score'],
-        grade_label = f"Grade {report_data['grade']} - {report_data['grade_label']}",
-        title       = report_data.get('quality_title', 'Overall Quality'),
-        description = report_data.get('score_description', ''),
-    ))
+    story.append(KeepTogether([
+        SectionHeader('O', 'Overall Score',
+            'Composite score across all weighted evaluation parameters'),
+        Spacer(1, 4 * mm),
+        ScoreHero(
+            score       = report_data['score'],
+            max_score   = report_data['max_score'],
+            grade_label = f"Grade {report_data['grade']} - {report_data['grade_label']}",
+            title       = report_data.get('quality_title', 'Overall Quality'),
+            description = report_data.get('score_description', ''),
+        ),
+    ]))
     story.append(Spacer(1, 7 * mm))
 
     # ── Detected Sections
-    story.append(SectionHeader('S', 'Detected Sections',
-        'Sections identified in the paper with confidence scores'))
-    story.append(Spacer(1, 4 * mm))
-    story.extend(_build_detected_sections(report_data.get('detected_sections', {})))
+    story.append(KeepTogether([
+        SectionHeader('S', 'Detected Sections',
+            'Sections identified in the paper with confidence scores'),
+        Spacer(1, 4 * mm),
+        *_build_detected_sections(report_data.get('detected_sections', {})),
+    ]))
     story.append(Spacer(1, 7 * mm))
 
     # ── Multi-Layer Analysis
@@ -786,19 +798,23 @@ def _build_story(report_data):
     # ── Citation Check + Verdict (new page)
     story.append(PageBreak())
 
-    story.append(SectionHeader('+', 'Citation Check',
-        'Reference verification via CrossRef database'))
-    story.append(Spacer(1, 4 * mm))
-    story.extend(_build_citation_section(report_data['citations']))
+    story.append(KeepTogether([
+        SectionHeader('+', 'Citation Check',
+            'Reference verification via CrossRef database'),
+        Spacer(1, 4 * mm),
+        *_build_citation_section(report_data['citations']),
+    ]))
     story.append(Spacer(1, 7 * mm))
 
-    story.append(SectionHeader('=', 'Verdict',
-        'Final assessment and editorial recommendation'))
-    story.append(Spacer(1, 4 * mm))
-    story.append(VerdictCard(
-        verdict_text   = report_data['verdict_text'],
-        recommendation = report_data['recommendation'],
-    ))
+    story.append(KeepTogether([
+        SectionHeader('=', 'Verdict',
+            'Final assessment and editorial recommendation'),
+        Spacer(1, 4 * mm),
+        VerdictCard(
+            verdict_text   = report_data['verdict_text'],
+            recommendation = report_data['recommendation'],
+        ),
+    ]))
 
     return story
 

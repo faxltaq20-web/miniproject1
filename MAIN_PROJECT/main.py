@@ -1,5 +1,6 @@
 import os
 import tempfile
+import requests
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -12,6 +13,7 @@ load_dotenv()
 import pdf_parser
 import section_detector
 import gemini_analyzer  # Phase 2
+from gemini_analyzer import check_api_health
 import scoring          # Phase 2
 import citation_checker # Phase 3
 import report_generator # Phase 4
@@ -31,6 +33,46 @@ async def root():
     """Health check endpoint."""
     return {"status": "ResearchSense API is running"}
 
+@app.get("/health")
+async def health_check():
+    """
+    Comprehensive health check — tests Gemini API keys, CrossRef, and Semantic Scholar.
+    Returns overall status as 'healthy' or 'degraded'.
+    """
+    # Check Gemini keys
+    gemini_health = check_api_health()
+
+    # Check CrossRef connectivity
+    try:
+        cr_resp = requests.head(
+            "https://api.crossref.org/works/10.1000/test",
+            timeout=3,
+        )
+        crossref_status = {"status": "ok"}
+    except Exception:
+        crossref_status = {"status": "unreachable"}
+
+    # Check Semantic Scholar connectivity
+    try:
+        ss_resp = requests.head(
+            "https://api.semanticscholar.org/graph/v1/paper/search?query=test&limit=1",
+            timeout=3,
+        )
+        semantic_scholar_status = {"status": "ok"}
+    except Exception:
+        semantic_scholar_status = {"status": "unreachable"}
+
+    # Overall status
+    is_healthy = gemini_health["any_key_working"] and crossref_status["status"] == "ok"
+    overall_status = "healthy" if is_healthy else "degraded"
+
+    return JSONResponse(content={
+        "status": overall_status,
+        "gemini": gemini_health,
+        "crossref": crossref_status,
+        "semantic_scholar": semantic_scholar_status,
+    })
+
 @app.post("/analyze")
 async def analyze_paper(file: UploadFile = File(...)):
     """
@@ -38,6 +80,17 @@ async def analyze_paper(file: UploadFile = File(...)):
     Accepts a research paper PDF, runs the full 5-layer analysis pipeline,
     and returns a structured JSON response.
     """
+    # ── Pre-flight: check if any Gemini key is alive ──────────────────
+    health_result = check_api_health()
+    if not health_result["any_key_working"]:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "All Gemini API keys are unavailable. Please check your .env configuration or try again later.",
+                "health": health_result,
+            }
+        )
+
     # Validate file extension
     if not file.filename.lower().endswith(".pdf"):
         return JSONResponse(

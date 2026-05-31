@@ -6,6 +6,7 @@ automatically rotates to the next key. This gives 5× the free-tier quota.
 """
 
 from google import genai
+from google.genai import types
 import json
 import os
 import re
@@ -95,6 +96,10 @@ def _call_single_key(key_name: str, client, prompt: str,
             response = client.models.generate_content(
                 model=_MODEL,
                 contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.0,
+                    top_p=0.95,
+                ),
             )
             return response.text.strip()
         except Exception as e:
@@ -278,6 +283,21 @@ Return ONLY a JSON object with exactly this structure (no markdown, no extra tex
   "evidence_claims": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}}
 }}
 
+FEW-SHOT EXAMPLE — calibration reference for scoring:
+
+Example paper excerpt:
+"This study investigates sentiment analysis using machine learning. We collected 500 tweets and applied Naive Bayes. Results show 72% accuracy. We conclude our method is effective for sentiment analysis."
+
+Example output:
+{{
+  "structure_sections": {{"score": 5, "issues": ["No Related Work or Discussion section present", "Abstract is missing; paper jumps directly into introduction"], "suggestions": ["Add a Related Work section comparing to existing sentiment analysis approaches", "Include a proper abstract summarizing objectives, methods, and findings"]}},
+  "clarity_writing": {{"score": 6, "issues": ["Sentences are overly simplistic and lack academic depth", "No transition phrases between sections"], "suggestions": ["Expand sentence complexity and use domain-specific terminology", "Add transition sentences to improve logical flow between paragraphs"]}},
+  "methodology_rigor": {{"score": 5, "issues": ["Dataset of 500 tweets is too small without justification", "No baseline comparisons or cross-validation mentioned"], "suggestions": ["Justify dataset size or expand it; report collection methodology", "Compare against at least two baseline methods and use k-fold cross-validation"]}},
+  "evidence_claims": {{"score": 5, "issues": ["Claiming method is 'effective' based solely on 72% accuracy without context", "No statistical significance testing reported"], "suggestions": ["Contextualize accuracy against baselines and state-of-the-art results", "Include confidence intervals or significance tests for reported metrics"]}}
+}}
+
+END OF EXAMPLE — now evaluate the actual paper below.
+
 Paper content (excerpted):
 {assembled_text}"""
 
@@ -311,4 +331,41 @@ Paper content (excerpted):
     return {
         "layer_details": layer_details,
         "layer_scores": layer_scores,
+    }
+
+
+# ─── Health Check ─────────────────────────────────────────────────────────────
+
+def check_api_health() -> dict:
+    """
+    Lightweight connectivity test for all loaded Gemini API keys.
+    Tests each key sequentially with a minimal prompt to avoid quota burn.
+    Returns a dict with per-key status and overall availability.
+    """
+    keys_status = []
+    any_key_working = False
+
+    for key_name, client in _clients:
+        try:
+            _call_single_key(key_name, client, "ping", max_retries=1, initial_delay=1.0)
+            keys_status.append({"key": key_name, "status": "ok"})
+            any_key_working = True
+        except Exception as e:
+            err_msg = str(e)
+            # Extract a short error description
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                keys_status.append({"key": key_name, "status": "error: 429"})
+            elif "403" in err_msg:
+                keys_status.append({"key": key_name, "status": "error: 403"})
+            elif "401" in err_msg:
+                keys_status.append({"key": key_name, "status": "error: 401"})
+            else:
+                short_err = err_msg[:80] if len(err_msg) > 80 else err_msg
+                keys_status.append({"key": key_name, "status": f"error: {short_err}"})
+
+    return {
+        "gemini_keys_loaded": len(_clients),
+        "keys_status": keys_status,
+        "any_key_working": any_key_working,
+        "model": _MODEL,
     }

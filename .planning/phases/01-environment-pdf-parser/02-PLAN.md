@@ -1,12 +1,11 @@
 ---
 phase: 1
 plan: 2
-title: "Person 2 — AI Analyzer & Scoring Stubs"
+title: "Person 2 — Scoring Module"
 owner: "Person 2 (P2)"
 wave: 1
 depends_on: []
 files_modified:
-  - gemini_analyzer.py
   - scoring.py
 requirements:
   - CORE-04
@@ -29,13 +28,13 @@ Person 2 builds the real scoring module (`scoring.py`) during Phase 1. This is p
 
 ### Task 1: Scoring Module (scoring.py)
 
-<read_first>
-- ResearchSense_Research.md (Section 9 — Scoring Algorithm)
-- TEAM_SUMMARY.md (Section 4 — Integration Plan, Module Interface Contract)
-- .planning/phases/02-ai-analysis-engine/02-CONTEXT.md (Decisions D-08, D-09)
-</read_first>
+**Read first:**
+- `ResearchSense_Research.md` (Section 9 — Scoring Algorithm)
+- `TEAM_SUMMARY.md` (Section 4 — Integration Plan, Module Interface Contract)
+- `02-CONTEXT.md` (Decisions D-08, D-09)
 
-<action>
+**Action:**
+
 Create `scoring.py` with:
 
 1. **`WEIGHTS` constant** — the official weight configuration:
@@ -63,7 +62,7 @@ Create `scoring.py` with:
    ]
    ```
 
-3. **`calculate_confidence_score(layer_scores: dict) -> dict`** — the real scoring function (can be implemented now since it's pure Python math):
+3. **`calculate_confidence_score(layer_scores: dict) -> dict`** — the real scoring function:
    ```python
    def calculate_confidence_score(layer_scores: dict) -> dict:
        """
@@ -99,27 +98,25 @@ Create `scoring.py` with:
        }
    ```
 
-This is the REAL implementation — not a stub. The scoring algorithm is pure math with no external dependencies, so Person 2 can build and test it right away in Phase 1.
-</action>
+> This is the **REAL implementation** — not a stub. Pure Python math, no external dependencies. Person 2 can build and test this right away in Phase 1.
 
-<acceptance_criteria>
+**Acceptance criteria:**
 - `scoring.py` exists in the project root
 - `scoring.py` contains `WEIGHTS` dict with 8 entries summing to 1.0
 - `scoring.py` contains `GRADE_SCALE` list with 5 grade thresholds
 - `scoring.py` contains `def calculate_confidence_score(layer_scores: dict) -> dict`
-- `calculate_confidence_score({"grammar": 8, "readability": 7, "abstract": 9, "structure": 8, "methodology": 6, "logic": 7, "conclusion": 8, "citations": 9})` returns `{"final_score": 76.5, "grade": "B — Good", ...}`
-- `calculate_confidence_score({})` returns `{"final_score": 0, "grade": "F — Very Poor", ...}`
-- File can be imported without errors: `python -c "import scoring"`
-</acceptance_criteria>
+- Test: `calculate_confidence_score({"grammar": 8, "readability": 7, "abstract": 9, "structure": 8, "methodology": 6, "logic": 7, "conclusion": 8, "citations": 9})` returns `{"final_score": 76.5, "grade": "B — Good", ...}`
+- Test: `calculate_confidence_score({})` returns `{"final_score": 0, "grade": "F — Very Poor", ...}`
+- File imports without errors: `python -c "import scoring"`
 
 ---
 
 ## Verification
 
-### Must-Haves (derived from Phase 1 contribution)
+### Must-Haves
 1. ✓ `scoring.py` has the real weighted scoring algorithm
 2. ✓ `scoring.py` is importable without errors
-3. ✓ Return types match the interface contract in TEAM_SUMMARY.md Section 4
+3. ✓ Return types match the interface contract in `TEAM_SUMMARY.md` Section 4
 4. ✓ Scoring function produces correct results for known test cases
 5. ✓ `gemini_analyzer.py` is NOT created in Phase 1 — real implementation is Phase 2
 
