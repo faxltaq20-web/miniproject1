@@ -151,7 +151,7 @@ Plans:
 3. Enhanced robustness for complex PDFs with advanced failover mechanisms.
 
 Plans:
-- [ ] Plan 1: Deterministic Scoring & Few-Shot Prompting
-- [ ] Plan 2: Parallel Citation Title Verification
-- [ ] Plan 3: PDF Spacing, Formatting & Safe Keeping
-- [ ] Plan 4: API Pre-Flight & Health Checks
+- [x] Plan 1: Deterministic Scoring & Few-Shot Prompting
+- [x] Plan 2: Parallel Citation Title Verification
+- [x] Plan 3: PDF Spacing, Formatting & Safe Keeping
+- [x] Plan 4: API Pre-Flight & Health Checks
