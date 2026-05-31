@@ -1,8 +1,9 @@
 # ResearchSense — Complete Project Research Document
-**AI-Based Academic Paper Analysis and Error Detection System**  
+
+**AI-Based Academic Paper Analysis and Error Detection System**\
 *Research compiled: April 2026 | Domain: AI + EdTech*
 
----
+***
 
 ## Table of Contents
 
@@ -23,14 +24,16 @@
 15. [Project Timeline](#15-project-timeline)
 16. [Risks & Mitigations](#16-risks--mitigations)
 
----
+***
 
 ## 1. Project Overview
 
 ### What is ResearchSense?
+
 ResearchSense is an AI-powered academic paper reviewer. A user uploads a research paper PDF, and the system automatically analyzes it across 8 quality dimensions, then generates a structured report with a confidence score (0–100).
 
 ### Core Flow
+
 ```
 User uploads PDF
       ↓
@@ -48,11 +51,12 @@ Display in Web UI
 ```
 
 ### Target Users
-- University students submitting research papers
-- Researchers preparing journal submissions
-- Academics who want pre-review quality checks
 
----
+* University students submitting research papers
+* Researchers preparing journal submissions
+* Academics who want pre-review quality checks
+
+***
 
 ## 2. System Architecture
 
@@ -106,41 +110,45 @@ Display in Web UI
 └─────────────────┘
 ```
 
----
+***
 
 ## 3. Gemini API — Core AI Engine
 
 ### Why Gemini?
-- Completely **free tier** — no credit card required
-- Large **1 million token context window** — can handle entire research papers
-- Strong at structured JSON output — perfect for layer-by-layer analysis
-- Fast response time with Gemini 2.5 Flash
+
+* Completely **free tier** — no credit card required
+* Large **1 million token context window** — can handle entire research papers
+* Strong at structured JSON output — perfect for layer-by-layer analysis
+* Fast response time with Gemini 2.5 Flash
 
 ### Current Free Tier Limits (April 2026)
 
-| Model | RPM | RPD | TPM | Best For |
-|---|---|---|---|---|
-| Gemini 2.5 Flash | 10 | 250 | 250,000 | **Recommended for this project** |
-| Gemini 2.5 Flash-Lite | 15 | 1,000 | 250,000 | High-volume, simpler tasks |
-| Gemini 2.5 Pro | 5 | 100 | 250,000 | Complex reasoning (very limited) |
+| Model                 | RPM | RPD   | TPM     | Best For                         |
+| --------------------- | --- | ----- | ------- | -------------------------------- |
+| Gemini 2.5 Flash      | 10  | 250   | 250,000 | **Recommended for this project** |
+| Gemini 2.5 Flash-Lite | 15  | 1,000 | 250,000 | High-volume, simpler tasks       |
+| Gemini 2.5 Pro        | 5   | 100   | 250,000 | Complex reasoning (very limited) |
 
 > ⚠️ **Important Note:** Google reduced free tier limits by 50-80% in December 2025. Gemini 2.0 Flash was deprecated in March 2026. Use **Gemini 2.5 Flash** as your primary model.
 
-> ⚠️ **Rate Limit Strategy:** Since each paper analysis uses ~6-8 API calls (one per layer), with 250 RPD you can analyze ~30 full papers per day on the free tier. This is more than enough for a university demo.
+> ⚠️ **Rate Limit Strategy:** Since each paper analysis uses \~6-8 API calls (one per layer), with 250 RPD you can analyze \~30 full papers per day on the free tier. This is more than enough for a university demo.
 
 ### Getting Your Free API Key
+
 1. Go to **aistudio.google.com**
 2. Sign in with Google account
 3. Click **"Get API Key"** → Create API key
 4. Copy and store in your `.env` file as `GEMINI_API_KEY=your_key_here`
 
 ### Installation
-```bash
+
+```Shell
 pip install google-generativeai
 ```
 
 ### Basic Setup Code
-```python
+
+```Python
 import google.generativeai as genai
 
 genai.configure(api_key="YOUR_GEMINI_API_KEY")
@@ -154,7 +162,8 @@ print(response.text)
 ### Prompt Templates for Each Layer
 
 **Layer 1 — Grammar & Language Check:**
-```python
+
+```Python
 prompt = f"""
 You are an expert academic editor. Analyze the following section of a research paper.
 Detect ALL grammar, spelling, punctuation, and clarity errors.
@@ -173,7 +182,8 @@ Section Text:
 ```
 
 **Layer 2 — Readability Score:**
-```python
+
+```Python
 prompt = f"""
 You are an academic writing expert. Analyze the readability of the following research paper section.
 
@@ -195,7 +205,8 @@ Section Text:
 ```
 
 **Layer 3 — Abstract Quality:**
-```python
+
+```Python
 prompt = f"""
 You are a senior academic reviewer. Evaluate the quality of the following Abstract.
 
@@ -221,7 +232,8 @@ Abstract:
 ```
 
 **Layer 4 — Structural Integrity:**
-```python
+
+```Python
 prompt = f"""
 You are an academic paper structure expert. Analyze the structural integrity of this research paper.
 
@@ -250,7 +262,8 @@ Full Paper Text (first 3000 words):
 ```
 
 **Layer 5 — Methodology Soundness:**
-```python
+
+```Python
 prompt = f"""
 You are an expert research methodology reviewer. Critically analyze the Methodology section below.
 
@@ -277,7 +290,8 @@ Methodology Section:
 ```
 
 **Layer 6 — Logical Consistency:**
-```python
+
+```Python
 prompt = f"""
 You are a senior peer reviewer. Compare the Abstract, Methodology, Results, and Conclusion
 of this research paper for logical consistency.
@@ -309,7 +323,8 @@ Conclusion: {conclusion_text}
 ```
 
 **Layer 7 — Conclusion Completeness:**
-```python
+
+```Python
 prompt = f"""
 You are an expert academic reviewer. Evaluate the quality and completeness of this Conclusion section.
 
@@ -336,7 +351,8 @@ Conclusion Section:
 ```
 
 ### Handling Gemini API Rate Limits
-```python
+
+```Python
 import time
 
 def call_gemini_with_retry(model, prompt, max_retries=3):
@@ -354,25 +370,28 @@ def call_gemini_with_retry(model, prompt, max_retries=3):
     raise Exception("Max retries exceeded")
 ```
 
----
+***
 
 ## 4. PDF Parsing — PyMuPDF
 
 ### Why PyMuPDF?
-- Best performance for native (non-scanned) PDF extraction
-- Handles multi-column academic paper layouts
-- Free and open-source (AGPL license)
-- Supports OCR via Tesseract for scanned PDFs
-- Has `pymupdf4llm` extension optimized for LLM/AI pipelines
+
+* Best performance for native (non-scanned) PDF extraction
+* Handles multi-column academic paper layouts
+* Free and open-source (AGPL license)
+* Supports OCR via Tesseract for scanned PDFs
+* Has `pymupdf4llm` extension optimized for LLM/AI pipelines
 
 ### Installation
-```bash
+
+```Shell
 pip install pymupdf
 pip install pymupdf4llm   # Optional: better for LLM pipelines
 ```
 
 ### Basic Text Extraction
-```python
+
+```Python
 import pymupdf
 
 def extract_text_from_pdf(pdf_path):
@@ -387,7 +406,8 @@ def extract_text_from_pdf(pdf_path):
 ```
 
 ### Advanced Extraction (Multi-column Academic Papers)
-```python
+
+```Python
 import pymupdf4llm
 
 def extract_text_smart(pdf_path):
@@ -397,7 +417,8 @@ def extract_text_smart(pdf_path):
 ```
 
 ### Handling Scanned PDFs (OCR Fallback)
-```python
+
+```Python
 import pymupdf
 
 def extract_with_ocr_fallback(pdf_path):
@@ -418,11 +439,12 @@ def extract_with_ocr_fallback(pdf_path):
 ```
 
 ### Key Limitations to Know
-- Cannot extract text from scanned PDFs without OCR integration
-- Multi-column layouts may have text ordering issues
-- Some PDFs use fonts without character maps — text may appear garbled
 
----
+* Cannot extract text from scanned PDFs without OCR integration
+* Multi-column layouts may have text ordering issues
+* Some PDFs use fonts without character maps — text may appear garbled
+
+***
 
 ## 5. Section Detection
 
@@ -430,7 +452,7 @@ def extract_with_ocr_fallback(pdf_path):
 
 Academic papers follow predictable heading patterns. We use regex to identify section boundaries.
 
-```python
+```Python
 import re
 
 SECTION_PATTERNS = {
@@ -466,9 +488,10 @@ def detect_sections(full_text):
 ```
 
 ### Fallback: Ask Gemini to Split Sections
+
 If regex fails (which can happen with unusual paper formats), use Gemini:
 
-```python
+```Python
 def detect_sections_with_ai(full_text, model):
     prompt = f"""
     The following is a research paper. Split it into these sections:
@@ -484,7 +507,7 @@ def detect_sections_with_ai(full_text, model):
     return json.loads(response.text)
 ```
 
----
+***
 
 ## 6. Evaluation Parameters (8 Layers)
 
@@ -492,94 +515,106 @@ Research-backed criteria drawn from peer review standards at 11 top-tier CS conf
 
 ### Parameter Weights
 
-| # | Parameter | Weight | API Used |
-|---|---|---|---|
-| 1 | Grammar & Language | 15% | Gemini API |
-| 2 | Readability Score | 10% | Gemini API |
-| 3 | Abstract Quality | 10% | Gemini API |
-| 4 | Structural Integrity | 15% | Gemini API |
-| 5 | Methodology Soundness | 15% | Gemini API |
-| 6 | Logical Consistency | 15% | Gemini API |
-| 7 | Conclusion Completeness | 10% | Gemini API |
-| 8 | Citation & Reference Quality | 10% | Semantic Scholar + CrossRef |
+| # | Parameter                    | Weight | API Used                    |
+| - | ---------------------------- | ------ | --------------------------- |
+| 1 | Grammar & Language           | 15%    | Gemini API                  |
+| 2 | Readability Score            | 10%    | Gemini API                  |
+| 3 | Abstract Quality             | 10%    | Gemini API                  |
+| 4 | Structural Integrity         | 15%    | Gemini API                  |
+| 5 | Methodology Soundness        | 15%    | Gemini API                  |
+| 6 | Logical Consistency          | 15%    | Gemini API                  |
+| 7 | Conclusion Completeness      | 10%    | Gemini API                  |
+| 8 | Citation & Reference Quality | 10%    | Semantic Scholar + CrossRef |
 
 ### What Each Parameter Checks
 
 **1. Grammar & Language (15%)**
-- Spelling and grammar errors
-- Sentence clarity and conciseness
-- Passive vs active voice overuse
-- Academic tone appropriateness
-- Word choice and vocabulary
+
+* Spelling and grammar errors
+* Sentence clarity and conciseness
+* Passive vs active voice overuse
+* Academic tone appropriateness
+* Word choice and vocabulary
 
 **2. Readability Score (10%)**
-- Average sentence length and complexity
-- Jargon density and accessibility
-- Flesch Reading Ease estimation
-- Clarity for target academic audience
-- Research shows 26%+ of scientific abstracts are now beyond college-graduate reading level
+
+* Average sentence length and complexity
+* Jargon density and accessibility
+* Flesch Reading Ease estimation
+* Clarity for target academic audience
+* Research shows 26%+ of scientific abstracts are now beyond college-graduate reading level
 
 **3. Abstract Quality (10%)**
-- Presence of: problem statement, methodology, results, conclusion
-- Is the abstract self-contained (standalone)?
-- Word count within appropriate limits (150–300 words)
-- All key contributions mentioned
+
+* Presence of: problem statement, methodology, results, conclusion
+* Is the abstract self-contained (standalone)?
+* Word count within appropriate limits (150–300 words)
+* All key contributions mentioned
 
 **4. Structural Integrity (15%)**
-- Are all required sections present?
-- Are sections in the correct logical order?
-- Presence of Keywords section
-- Presence and formatting of headings
-- Adherence to standard paper structure
+
+* Are all required sections present?
+* Are sections in the correct logical order?
+* Presence of Keywords section
+* Presence and formatting of headings
+* Adherence to standard paper structure
 
 **5. Methodology Soundness (15%)**
-- Is the research design clearly described?
-- Are tools/datasets/instruments appropriate and justified?
-- Is sample size or dataset size explained?
-- Are methodology limitations acknowledged?
-- Is the methodology reproducible?
+
+* Is the research design clearly described?
+* Are tools/datasets/instruments appropriate and justified?
+* Is sample size or dataset size explained?
+* Are methodology limitations acknowledged?
+* Is the methodology reproducible?
 
 **6. Logical Consistency (15%)**
-- Do Results prove what the Abstract claims?
-- Does Methodology logically lead to Results?
-- Does Conclusion accurately reflect Results?
-- No contradictions between sections
-- No unsupported or overreaching claims
+
+* Do Results prove what the Abstract claims?
+* Does Methodology logically lead to Results?
+* Does Conclusion accurately reflect Results?
+* No contradictions between sections
+* No unsupported or overreaching claims
 
 **7. Conclusion Completeness (10%)**
-- Directly answers the research question
-- Summarizes key findings clearly
-- Discusses implications of findings
-- Acknowledges study limitations
-- Suggests future research directions
+
+* Directly answers the research question
+* Summarizes key findings clearly
+* Discusses implications of findings
+* Acknowledges study limitations
+* Suggests future research directions
 
 **8. Citation & Reference Quality (10%)**
-- Citations actually exist (verified via Semantic Scholar)
-- DOIs are valid (verified via CrossRef)
-- References are properly formatted
-- No self-citation abuse
-- References are recent and relevant
 
----
+* Citations actually exist (verified via Semantic Scholar)
+* DOIs are valid (verified via CrossRef)
+* References are properly formatted
+* No self-citation abuse
+* References are recent and relevant
+
+***
 
 ## 7. Semantic Scholar API — Citation Check
 
 ### What It Does
+
 Verifies that references cited in the paper actually exist in the academic literature database covering 200M+ papers.
 
 ### Access & Limits
-- **Completely free** — no payment required
-- Public API: 1 request/second (unauthenticated)
-- With free API key: 1 RPS on all endpoints (more stable)
-- Get API key at: api.semanticscholar.org
+
+* **Completely free** — no payment required
+* Public API: 1 request/second (unauthenticated)
+* With free API key: 1 RPS on all endpoints (more stable)
+* Get API key at: api.semanticscholar.org
 
 ### Installation
-```bash
+
+```Shell
 pip install semanticscholar
 ```
 
 ### Usage — Search for a Paper
-```python
+
+```Python
 from semanticscholar import SemanticScholar
 
 sch = SemanticScholar()
@@ -599,7 +634,8 @@ else:
 ```
 
 ### Usage — Batch Citation Verification
-```python
+
+```Python
 def verify_citations(reference_list):
     sch = SemanticScholar()
     results = []
@@ -638,7 +674,8 @@ def verify_citations(reference_list):
 ```
 
 ### Citation Score Calculation
-```python
+
+```Python
 def calculate_citation_score(verified_citations):
     if not verified_citations:
         return 5  # neutral if no citations
@@ -654,27 +691,31 @@ def calculate_citation_score(verified_citations):
     return round(score, 1)
 ```
 
----
+***
 
 ## 8. CrossRef API — DOI Validation
 
 ### What It Does
+
 CrossRef is the official DOI registry for academic publications. It validates whether DOIs in a paper's references are real and returns full metadata.
 
 ### Access & Limits
-- **Completely free** — no API key required
-- Polite pool: include your email as `mailto` parameter for better performance
-- No formal rate limit — be respectful (1-2 requests/second max)
-- Base URL: `https://api.crossref.org`
+
+* **Completely free** — no API key required
+* Polite pool: include your email as `mailto` parameter for better performance
+* No formal rate limit — be respectful (1-2 requests/second max)
+* Base URL: `https://api.crossref.org`
 
 ### Installation
-```bash
+
+```Shell
 pip install requests
 # Optional: pip install habanero  (Python CrossRef wrapper)
 ```
 
 ### DOI Extraction from References
-```python
+
+```Python
 import re
 
 def extract_dois_from_references(references_text):
@@ -685,7 +726,8 @@ def extract_dois_from_references(references_text):
 ```
 
 ### DOI Validation
-```python
+
+```Python
 import requests
 import time
 
@@ -723,12 +765,13 @@ def validate_all_dois(dois, your_email):
     return results
 ```
 
----
+***
 
 ## 9. Scoring Algorithm
 
 ### Weighted Average Formula
-```python
+
+```Python
 WEIGHTS = {
     "grammar":         0.15,
     "readability":     0.10,
@@ -777,6 +820,7 @@ def calculate_confidence_score(layer_scores: dict) -> dict:
 ```
 
 ### Example Scoring Run
+
 ```
 Grammar:       8/10 × 15% = 12.0
 Readability:   7/10 × 10% =  7.0
@@ -791,24 +835,27 @@ Weighted sum:              76.5
 Final Score:               76.5 / 100  →  Grade: B — Good
 ```
 
----
+***
 
 ## 10. Backend — FastAPI
 
 ### Why FastAPI?
-- Python-native — same language as all other components
-- Auto-generates interactive API docs at `/docs`
-- Async support — handles file uploads efficiently
-- Very fast and production-ready
-- Used by Netflix, Uber, and Microsoft
+
+* Python-native — same language as all other components
+* Auto-generates interactive API docs at `/docs`
+* Async support — handles file uploads efficiently
+* Very fast and production-ready
+* Used by Netflix, Uber, and Microsoft
 
 ### Installation
-```bash
+
+```Shell
 pip install fastapi uvicorn python-multipart
 ```
 
 ### Core API Structure
-```python
+
+```Python
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -865,12 +912,13 @@ if __name__ == "__main__":
 ```
 
 ### Running the Server
-```bash
+
+```Shell
 uvicorn main:app --reload
 # Access API docs at: http://localhost:8000/docs
 ```
 
----
+***
 
 ## 11. Frontend
 
@@ -879,6 +927,7 @@ uvicorn main:app --reload
 For a university project, a clean single-page HTML app is more than sufficient. No React needed unless you want it.
 
 ### Minimal Frontend Structure
+
 ```
 frontend/
 ├── index.html       ← Main upload page
@@ -888,7 +937,8 @@ frontend/
 ```
 
 ### Upload Form (index.html core)
-```html
+
+```HTML
 <div class="upload-section">
     <h1>ResearchSense</h1>
     <p>Upload your research paper for AI-powered analysis</p>
@@ -908,7 +958,8 @@ frontend/
 ```
 
 ### API Call (app.js)
-```javascript
+
+```JavaScript
 async function analyzePaper() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
@@ -947,17 +998,19 @@ function displayResults(result) {
 }
 ```
 
----
+***
 
 ## 12. Report Generation — ReportLab
 
 ### Installation
-```bash
+
+```Shell
 pip install reportlab
 ```
 
 ### Generate PDF Report
-```python
+
+```Python
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -999,35 +1052,37 @@ def generate_pdf_report(paper_filename, score_result, layer_results, output_path
     return output_path
 ```
 
----
+***
 
 ## 13. Full Tech Stack Summary
 
-| Component | Tool | Version | Cost |
-|---|---|---|---|
-| AI Analysis Engine | Google Gemini 2.5 Flash | Latest | ✅ Free |
-| Citation Verification | Semantic Scholar API | Latest | ✅ Free |
-| DOI Validation | CrossRef REST API | Latest | ✅ Free |
-| PDF Parsing | PyMuPDF | 1.27.x | ✅ Free |
-| Text Processing | pymupdf4llm | Latest | ✅ Free |
-| Backend Framework | FastAPI | 0.115.x | ✅ Free |
-| ASGI Server | Uvicorn | Latest | ✅ Free |
-| Report Generation | ReportLab | 4.x | ✅ Free |
-| Frontend | HTML + CSS + JS | — | ✅ Free |
-| Python SDK (Gemini) | google-generativeai | Latest | ✅ Free |
-| Python SDK (S2) | semanticscholar | 0.12.x | ✅ Free |
+| Component             | Tool                    | Version | Cost   |
+| --------------------- | ----------------------- | ------- | ------ |
+| AI Analysis Engine    | Google Gemini 2.5 Flash | Latest  | ✅ Free |
+| Citation Verification | Semantic Scholar API    | Latest  | ✅ Free |
+| DOI Validation        | CrossRef REST API       | Latest  | ✅ Free |
+| PDF Parsing           | PyMuPDF                 | 1.27.x  | ✅ Free |
+| Text Processing       | pymupdf4llm             | Latest  | ✅ Free |
+| Backend Framework     | FastAPI                 | 0.115.x | ✅ Free |
+| ASGI Server           | Uvicorn                 | Latest  | ✅ Free |
+| Report Generation     | ReportLab               | 4.x     | ✅ Free |
+| Frontend              | HTML + CSS + JS         | —       | ✅ Free |
+| Python SDK (Gemini)   | google-generativeai     | Latest  | ✅ Free |
+| Python SDK (S2)       | semanticscholar         | 0.12.x  | ✅ Free |
 
 ### One-Line Install
-```bash
+
+```Shell
 pip install google-generativeai pymupdf pymupdf4llm fastapi uvicorn python-multipart reportlab requests semanticscholar
 ```
 
----
+***
 
 ## 14. Installation & Setup Guide
 
 ### Step 1 — Clone/Create Project
-```bash
+
+```Shell
 mkdir researchsense
 cd researchsense
 python -m venv venv
@@ -1035,19 +1090,23 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
 ### Step 2 — Install Dependencies
-```bash
+
+```Shell
 pip install google-generativeai pymupdf pymupdf4llm fastapi uvicorn python-multipart reportlab requests semanticscholar
 ```
 
 ### Step 3 — Environment Variables
+
 Create a `.env` file:
+
 ```
 GEMINI_API_KEY=your_gemini_api_key_here
 CONTACT_EMAIL=your@email.com
 ```
 
 Load in Python:
-```python
+
+```Python
 from dotenv import load_dotenv
 import os
 load_dotenv()
@@ -1055,11 +1114,13 @@ api_key = os.getenv("GEMINI_API_KEY")
 ```
 
 Also install dotenv:
-```bash
+
+```Shell
 pip install python-dotenv
 ```
 
 ### Step 4 — Project Structure
+
 ```
 researchsense/
 ├── main.py              ← FastAPI app entry point
@@ -1078,49 +1139,52 @@ researchsense/
 ```
 
 ### Step 5 — Run the App
-```bash
+
+```Shell
 uvicorn main:app --reload
 # Visit http://localhost:8000/docs to test API
 # Open frontend/index.html in browser
 ```
 
----
+***
 
 ## 15. Project Timeline
 
-| Phase | Task | Duration |
-|---|---|---|
-| Phase 1 | Setup environment, API keys, project structure | 2–3 days |
-| Phase 2 | PDF parser + section detector | 3–4 days |
-| Phase 3 | Gemini API integration (7 layers) | 5–7 days |
-| Phase 4 | Citation checking (Semantic Scholar + CrossRef) | 2–3 days |
-| Phase 5 | Scoring algorithm | 1–2 days |
-| Phase 6 | ReportLab PDF report generation | 2–3 days |
-| Phase 7 | Frontend UI | 3–4 days |
-| Phase 8 | Testing on real papers + bug fixes | 3–4 days |
-| **Total** | | **~3–4 weeks** |
+| Phase     | Task                                            | Duration        |
+| --------- | ----------------------------------------------- | --------------- |
+| Phase 1   | Setup environment, API keys, project structure  | 2–3 days        |
+| Phase 2   | PDF parser + section detector                   | 3–4 days        |
+| Phase 3   | Gemini API integration (7 layers)               | 5–7 days        |
+| Phase 4   | Citation checking (Semantic Scholar + CrossRef) | 2–3 days        |
+| Phase 5   | Scoring algorithm                               | 1–2 days        |
+| Phase 6   | ReportLab PDF report generation                 | 2–3 days        |
+| Phase 7   | Frontend UI                                     | 3–4 days        |
+| Phase 8   | Testing on real papers + bug fixes              | 3–4 days        |
+| **Total** |                                                 | **\~3–4 weeks** |
 
----
+***
 
 ## 16. Risks & Mitigations
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| Gemini free tier runs out (250 RPD) | Medium | Use Flash-Lite for simple layers; cache results |
-| PDF with unusual format breaks parser | Medium | Add Gemini-based fallback section detection |
-| Semantic Scholar API slow/down | Low | Add 3s timeout + retry logic; cache results |
-| CrossRef API rate limiting | Low | Add `mailto` param for polite pool; add delays |
-| Scanned PDF with no extractable text | Medium | Use pymupdf4llm OCR fallback |
-| Gemini returns invalid JSON | Medium | Wrap in try/except; ask Gemini to retry with stricter prompt |
-| Paper has non-standard section names | Medium | Use Gemini as fallback section detector |
+| Risk                                  | Likelihood | Mitigation                                                   |
+| ------------------------------------- | ---------- | ------------------------------------------------------------ |
+| Gemini free tier runs out (250 RPD)   | Medium     | Use Flash-Lite for simple layers; cache results              |
+| PDF with unusual format breaks parser | Medium     | Add Gemini-based fallback section detection                  |
+| Semantic Scholar API slow/down        | Low        | Add 3s timeout + retry logic; cache results                  |
+| CrossRef API rate limiting            | Low        | Add `mailto` param for polite pool; add delays               |
+| Scanned PDF with no extractable text  | Medium     | Use pymupdf4llm OCR fallback                                 |
+| Gemini returns invalid JSON           | Medium     | Wrap in try/except; ask Gemini to retry with stricter prompt |
+| Paper has non-standard section names  | Medium     | Use Gemini as fallback section detector                      |
 
 ### Rate Limit Strategy for Demo Day
+
 When presenting to university:
+
 1. Pre-analyze 5–10 sample papers and cache results
 2. Show live analysis on a short 4-page paper (fewer tokens)
 3. Have screenshots of full reports as backup
 
----
+***
 
-*Document prepared for ResearchSense — AI-Based Academic Paper Analysis and Error Detection System*  
+*Document prepared for ResearchSense — AI-Based Academic Paper Analysis and Error Detection System*\
 *Last updated: April 2026*
