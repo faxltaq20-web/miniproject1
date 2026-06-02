@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResearchSense — Academic Review Instrument</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Links to CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <span class="brand-logo">🧠</span>
+                <h1 class="brand-title">ResearchSense</h1>
+            </div>
+            <div class="header-diagnostics" id="diagnosticsBadge">
+                <span class="status-dot animate-pulse"></span>
+                <span class="status-text font-mono" id="diagnosticsText">Checking System...</span>
+            </div>
+        </header>
+
+        <!-- View 1: Upload & Pipeline Tracker -->
+        <div id="uploadView" class="view-state active">
+            <div class="upload-hero">
+                <h2>AI-Powered Academic Review Instrument</h2>
+                <p>Upload a research paper PDF for deep multi-dimensional quality analysis and reference credibility checks.</p>
+            </div>
+
+            <!-- Upload Dropzone -->
+            <div class="drop-zone" id="dropZone">
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+                <div class="drop-zone-content">
+                    <span class="drop-icon">📄</span>
+                    <p class="drop-text">Drag & drop your research paper PDF here</p>
+                    <span class="drop-or">or</span>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                </div>
+            </div>
+
+            <!-- Try Demo Quick Action -->
+            <div class="demo-trigger-container">
+                <span class="demo-text">Want to test without using API keys?</span>
+                <button class="btn btn-link" id="demoBtn" onclick="triggerDemoMode()">Try Pre-Cached Sample Paper</button>
+            </div>
+
+            <!-- Stepper Loader (Hidden by default) -->
+            <div class="stepper-container" id="stepperContainer">
+                <h3>Analyzing Research Paper...</h3>
+                <p class="stepper-subtext">Executing deep evaluation layers. This may take 10-20 seconds.</p>
+                
+                <ol class="stepper" id="stepper">
+                    <li class="step" id="step1">
+                        <span class="step-icon">○</span>
+                        <div class="step-details">
+                            <span class="step-title">Document Extraction</span>
+                            <span class="step-desc">Parsing text characters and sections</span>
+                        </div>
+                    </li>
+                    <li class="step" id="step2">
+                        <span class="step-icon">○</span>
+                        <div class="step-details">
+                            <span class="step-title">Academic Segmenter</span>
+                            <span class="step-desc">Detecting headers and structural boundaries</span>
+                        </div>
+                    </li>
+                    <li class="step" id="step3">
+                        <span class="step-icon">○</span>
+                        <div class="step-details">
+                            <span class="step-title">Multi-Layer AI Analysis</span>
+                            <span class="step-desc">Running Gemini deterministic evaluation</span>
+                        </div>
+                    </li>
+                    <li class="step" id="step4">
+                        <span class="step-icon">○</span>
+                        <div class="step-details">
+                            <span class="step-title">Reference Verification</span>
+                            <span class="step-desc">CrossRef and Semantic Scholar cross-checks</span>
+                        </div>
+                    </li>
+                    <li class="step" id="step5">
+                        <span class="step-icon">○</span>
+                        <div class="step-details">
+                            <span class="step-title">Synthesizing Report</span>
+                            <span class="step-desc">Compiling scores and visual PDF output</span>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- View 2: Analytics Dashboard -->
+        <div id="dashboardView" class="view-state">
+            
+            <!-- Dashboard Top Meta Row -->
+            <div class="dashboard-bar">
+                <button class="btn btn-secondary" onclick="resetUploadView()">
+                    <span class="btn-icon">←</span> Upload New Paper
+                </button>
+                <div class="paper-meta">
+                    <span class="meta-label">Analyzing File:</span>
+                    <span class="meta-val font-mono" id="analyzedFilename">paper.pdf</span>
+                </div>
+            </div>
+
+            <!-- Grid Layout -->
+            <div class="dashboard-grid">
+                
+                <!-- Left Rail: Main Scores & Reviews -->
+                <div class="grid-main">
+                    
+                    <!-- Score Hero Section -->
+                    <div class="dashboard-hero-card">
+                        <div class="hero-left">
+                            <!-- Circular SVG Gauge -->
+                            <div class="score-circle-container">
+                                <svg class="score-gauge" viewBox="0 0 200 200">
+                                    <circle class="gauge-bg" cx="100" cy="100" r="80" fill="none" stroke-width="14"></circle>
+                                    <circle class="gauge-fill" id="gaugeCircle" cx="100" cy="100" r="80" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="502" stroke-dashoffset="502" transform="rotate(-90 100 100)"></circle>
+                                    <text class="gauge-score font-data" x="100" y="102" text-anchor="middle" id="gaugeScoreText">0</text>
+                                    <text class="gauge-score-label" x="100" y="130" text-anchor="middle">OVERALL</text>
+                                </svg>
+                            </div>
+                            
+                            <!-- Grade and recommendation panel -->
+                            <div class="hero-labels">
+                                <div class="grade-badge" id="gradeBadge">B — Good</div>
+                                <div class="rec-badge" id="recBadge">RECOMMENDED WITH MINOR REVISIONS</div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Sections Pillar Grid -->
+                        <div class="hero-sections">
+                            <h4>Detected Academic Sections</h4>
+                            <div class="section-pill-grid" id="sectionPills">
+                                <!-- Dynamic Section Pills go here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5 Evaluation Layers Accordion List -->
+                    <div class="layer-accordion-container">
+                        <h3>Multi-Layer Quality Metrics</h3>
+                        <div class="layer-list" id="layerAccordionList">
+                            <!-- Dynamic Layer Accordions go here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Rail: Verdict & Citations -->
+                <div class="grid-side">
+                    
+                    <!-- Overall Qualitative Verdict -->
+                    <div class="side-card verdict-card">
+                        <div class="side-card-header">
+                            <span class="card-icon">🏆</span>
+                            <h3>Qualitative Review Verdict</h3>
+                        </div>
+                        <div class="side-card-body">
+                            <p id="qualitativeVerdictText">Loading verdict...</p>
+                        </div>
+                        <div class="side-card-footer">
+                            <button class="btn btn-primary btn-full" id="downloadPdfBtn" onclick="triggerPdfDownload()">
+                                <span class="btn-icon">📥</span> Download PDF Review Report
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bibliography Citation Stats Card -->
+                    <div class="side-card citation-stats-card">
+                        <div class="side-card-header">
+                            <span class="card-icon">🔗</span>
+                            <h3>Citation Metrics</h3>
+                        </div>
+                        <div class="side-card-body">
+                            <div class="citation-metrics-row">
+                                <div class="metric-block">
+                                    <span class="metric-val font-data" id="citeTotal">0</span>
+                                    <span class="metric-lbl">Total Refs</span>
+                                </div>
+                                <div class="metric-block">
+                                    <span class="metric-val font-data color-success" id="citeVerified">0</span>
+                                    <span class="metric-lbl">Verified</span>
+                                </div>
+                                <div class="metric-block">
+                                    <span class="metric-val font-data color-danger" id="citeUnverified">0</span>
+                                    <span class="metric-lbl">Flagged</span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="verification-progress-bar-container">
+                                <div class="verification-progress-label">
+                                    <span>Verification Rate</span>
+                                    <span class="font-data" id="verificationRatePct">0%</span>
+                                </div>
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill" id="verificationProgressBar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12-Column Reference Table List at bottom -->
+                <div class="span-12-references">
+                    <div class="ref-section-header">
+                        <h3>Academic References Validator</h3>
+                        <p>Semantic Scholar title indexing and CrossRef DOI validation telemetry.</p>
+                    </div>
+                    <div class="ref-table-wrapper">
+                        <table class="ref-table">
+                            <thead>
+                                <tr>
+                                    <th>Citation Entry Details</th>
+                                    <th>Method</th>
+                                    <th>Status Badging</th>
+                                    <th>Impact Metadata</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referenceTableBody">
+                                <!-- Dynamic Reference Rows go here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Slide-in Toast Notifications -->
+        <div id="toastNotification" class="toast-toast">
+            <span class="toast-icon" id="toastIcon">❌</span>
+            <span class="toast-message" id="toastMsg">Error details...</span>
+        </div>
+    </div>
+
+    <!-- Links to JS -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -10,6 +10,7 @@
 | [Phase 4: Reporting & Web UI](#phase-4-reporting--web-ui) | Generate PDF reports and wire up the final UI |
 | [Phase 6: Output Quality Optimization](#phase-6-output-quality-optimization) | Improve analysis accuracy, report quality, and pipeline robustness |
 | [Phase 7: Output Consistency and Overall Refinement](#phase-7-output-consistency-and-overall-refinement) | Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs |
+| [Phase 8: Web Frontend Dashboard](#phase-8-web-frontend-dashboard) | Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading |
 
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
@@ -34,10 +35,10 @@
 4. Invalid/timeout responses are caught and return neutral fallback scores
 5. Output dict keys match `scoring.py` WEIGHTS keys exactly
 
-**Plans:** 0 plans
+**Plans:** 1 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 5 to break down)
+- [x] Plan 1: Gemini 7-Layer AI Analysis Engine (merged with Phase 6)
 
 ---
 
@@ -155,3 +156,31 @@ Plans:
 - [x] Plan 2: Parallel Citation Title Verification
 - [x] Plan 3: PDF Spacing, Formatting & Safe Keeping
 - [x] Plan 4: API Pre-Flight & Health Checks
+
+---
+
+## Phase 8: Web Frontend Dashboard
+**Goal:** Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading.
+
+**Depends on:** Phase 7 (optimized and deterministic backend APIs must be operational)
+
+**Requirements Mapped:**
+- REP-03: Web UI displays the final score, grade, and breakdown to the user
+- REP-04: User can download the generated PDF report
+
+**Success Criteria:**
+1. A single-page, highly responsive HTML/CSS/JS frontend dashboard exists inside `frontend/`.
+2. Fully interactive file upload supporting drag-and-drop and strict `.pdf` validation.
+3. Multi-stage visual stepper dynamically showing the 5 backend processing steps.
+4. Beautiful score gauge SVG and Grade Pill displaying the final evaluation score.
+5. Interactive, expandable multi-layer accordion cards showing raw scores, weights, specific issues (red) and suggestions (green) for the 5 active layers.
+6. A scrollable citation list displaying metadata tooltips for verified citations and clear badges for flagged issues.
+7. Prominent "Download PDF Report" action button that POSTs current results to `/report` and triggers immediate binary browser download.
+8. Interactive pre-cached "Try Sample" mock dashboard for API-free grading demo.
+9. Footnote diagnostic badge displaying real-time API health status calling `/health`.
+
+Plans:
+- [x] Plan 1: UI Mockup & Static Pages Scaffolding
+- [x] Plan 2: Modern Glassmorphic Design System (CSS)
+- [x] Plan 3: Client Orchestration & API Connectivity (JS)
+- [x] Plan 4: PDF Downloading & Offline Mock Demo

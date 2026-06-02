@@ -1,0 +1,387 @@
+{
+  "C:\\Users\\mohdf\\mini project\\.planning\\config.json": {
+    "mtime": 1780151311.6945264,
+    "ast_hash": "3290098c26f499930551b9b8dcd8af44",
+    "semantic_hash": "3290098c26f499930551b9b8dcd8af44"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log.py": {
+    "mtime": 1779298295.963289,
+    "ast_hash": "3b9406a2c3d5df1f8025553a75df7d3a",
+    "semantic_hash": "3b9406a2c3d5df1f8025553a75df7d3a"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_clarification.py": {
+    "mtime": 1779299820.8418138,
+    "ast_hash": "88aab5b863fdced7eb253050ffe68ef6",
+    "semantic_hash": "88aab5b863fdced7eb253050ffe68ef6"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_completion.py": {
+    "mtime": 1780132632.527908,
+    "ast_hash": "764a15df620fc54a05b917b3de45a360",
+    "semantic_hash": "764a15df620fc54a05b917b3de45a360"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_deepseek.py": {
+    "mtime": 1779299879.1760607,
+    "ast_hash": "915371906d1f838020825bf61ee0e6b5",
+    "semantic_hash": "915371906d1f838020825bf61ee0e6b5"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_failover.py": {
+    "mtime": 1779356156.1135168,
+    "ast_hash": "28f1e89d69f9cec11aced0e886f64ce8",
+    "semantic_hash": "28f1e89d69f9cec11aced0e886f64ce8"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_followup.py": {
+    "mtime": 1779298365.4200559,
+    "ast_hash": "0f94214acc5d0c4297daf41872ac2e03",
+    "semantic_hash": "0f94214acc5d0c4297daf41872ac2e03"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_migration.py": {
+    "mtime": 1779299762.4778273,
+    "ast_hash": "c395dd3b39f9d6b7abc681606d663e88",
+    "semantic_hash": "c395dd3b39f9d6b7abc681606d663e88"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_opencode.py": {
+    "mtime": 1779355300.005381,
+    "ast_hash": "86132d390ef9611b3556f26eaff6fa2d",
+    "semantic_hash": "86132d390ef9611b3556f26eaff6fa2d"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_phase6.py": {
+    "mtime": 1779556373.7394714,
+    "ast_hash": "bbb360a7612439e94da2c1f5702d7b1e",
+    "semantic_hash": "bbb360a7612439e94da2c1f5702d7b1e"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_restructure.py": {
+    "mtime": 1779454512.8863676,
+    "ast_hash": "3429af2015247f16d35dec7dc66af9d2",
+    "semantic_hash": "3429af2015247f16d35dec7dc66af9d2"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\append_log_retryfix.py": {
+    "mtime": 1779368653.1907096,
+    "ast_hash": "e445ca7511c4402ac9924bc3c638312c",
+    "semantic_hash": "e445ca7511c4402ac9924bc3c638312c"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\citation_checker.py": {
+    "mtime": 1780149813.8390229,
+    "ast_hash": "368a99a974784f5e0ca9d2021e2359c2",
+    "semantic_hash": "368a99a974784f5e0ca9d2021e2359c2"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\diagnose_extraction.py": {
+    "mtime": 1779551399.4094832,
+    "ast_hash": "1c56d1a774a766d0ae428cbff0667544",
+    "semantic_hash": "1c56d1a774a766d0ae428cbff0667544"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\gemini_analyzer.py": {
+    "mtime": 1780416097.0637822,
+    "ast_hash": "4bf3699f8e33f26a4145b2c33fa15714",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\generate_test_pdf.py": {
+    "mtime": 1779455490.610162,
+    "ast_hash": "5c28030e53bef1e73831c5c6f57910f3",
+    "semantic_hash": "5c28030e53bef1e73831c5c6f57910f3"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\list_models.py": {
+    "mtime": 1779298072.1996129,
+    "ast_hash": "c86b8138c5c00e3fdcb54d35ffac2e90",
+    "semantic_hash": "c86b8138c5c00e3fdcb54d35ffac2e90"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\main.py": {
+    "mtime": 1780150093.67139,
+    "ast_hash": "203061f34cc3e92f60691f4aec64ede8",
+    "semantic_hash": "203061f34cc3e92f60691f4aec64ede8"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\pdf_parser.py": {
+    "mtime": 1780130693.8815143,
+    "ast_hash": "9a854ff92a1260e8d56690f5d14027df",
+    "semantic_hash": "9a854ff92a1260e8d56690f5d14027df"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\report_generator.py": {
+    "mtime": 1780149807.6979158,
+    "ast_hash": "c7bc184e55d2e00d476c709d28015ef8",
+    "semantic_hash": "c7bc184e55d2e00d476c709d28015ef8"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\run_local.py": {
+    "mtime": 1779556413.1127293,
+    "ast_hash": "313793371c1246f4a77d2af25d80e412",
+    "semantic_hash": "313793371c1246f4a77d2af25d80e412"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\sample_paper_data.json": {
+    "mtime": 1780221618.4044697,
+    "ast_hash": "743a482b2e039ba65fb47300e9d79c16",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\scoring.py": {
+    "mtime": 1779454005.177732,
+    "ast_hash": "63bed606134ffe097ba9867708ed1cc8",
+    "semantic_hash": "63bed606134ffe097ba9867708ed1cc8"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\section_detector.py": {
+    "mtime": 1779551676.4400122,
+    "ast_hash": "e5d3873c075215319aa76f24db572bd1",
+    "semantic_hash": "e5d3873c075215319aa76f24db572bd1"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\test_gemini.py": {
+    "mtime": 1779298099.4988306,
+    "ast_hash": "1d795dcb6db97f5b715869d6cf713ff9",
+    "semantic_hash": "1d795dcb6db97f5b715869d6cf713ff9"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\verify_restructure.py": {
+    "mtime": 1779454932.9575593,
+    "ast_hash": "376988569e3b1a5b2ddf06f3e9e39047",
+    "semantic_hash": "376988569e3b1a5b2ddf06f3e9e39047"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\tests\\test_citation_checker.py": {
+    "mtime": 1780149968.5687063,
+    "ast_hash": "416984c5dd9319c20520c2e861913de6",
+    "semantic_hash": "416984c5dd9319c20520c2e861913de6"
+  },
+  "C:\\Users\\mohdf\\mini project\\conversation.md": {
+    "mtime": 1780417221.2929878,
+    "ast_hash": "71c4ef79ea85676b1305ee920a9b83d6",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\conversation_log.md": {
+    "mtime": 1779452762.6737607,
+    "ast_hash": "cf7512dc0383853ee7cf6ebc4ece8448",
+    "semantic_hash": "cf7512dc0383853ee7cf6ebc4ece8448"
+  },
+  "C:\\Users\\mohdf\\mini project\\desirable.md": {
+    "mtime": 1779123318.4844756,
+    "ast_hash": "9e471bd6a38f1a143ebcff208c6b3f2f",
+    "semantic_hash": "9e471bd6a38f1a143ebcff208c6b3f2f"
+  },
+  "C:\\Users\\mohdf\\mini project\\explain.md": {
+    "mtime": 1779120610.8128922,
+    "ast_hash": "ef75343cc3ef6341dc80a11d659c8cdb",
+    "semantic_hash": "ef75343cc3ef6341dc80a11d659c8cdb"
+  },
+  "C:\\Users\\mohdf\\mini project\\ResearchSense_PPT_Content.md": {
+    "mtime": 1776843671.0377922,
+    "ast_hash": "449a002c32e682613deed3a5736c4b2e",
+    "semantic_hash": "449a002c32e682613deed3a5736c4b2e"
+  },
+  "C:\\Users\\mohdf\\mini project\\ResearchSense_Research.md": {
+    "mtime": 1779176461.223434,
+    "ast_hash": "b5fe7caa3abf34b48c4860804822b904",
+    "semantic_hash": "b5fe7caa3abf34b48c4860804822b904"
+  },
+  "C:\\Users\\mohdf\\mini project\\TEAM_SUMMARY.md": {
+    "mtime": 1778510035.6800885,
+    "ast_hash": "4e262d44e8bfce40c4925a59e74bf0b2",
+    "semantic_hash": "4e262d44e8bfce40c4925a59e74bf0b2"
+  },
+  "C:\\Users\\mohdf\\mini project\\.agents\\rules\\graphify.md": {
+    "mtime": 1780151478.9850662,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": "a0e4d192b9e2e17256124dbfc8e24e6a"
+  },
+  "C:\\Users\\mohdf\\mini project\\.agents\\workflows\\graphify.md": {
+    "mtime": 1780151478.9862113,
+    "ast_hash": "637776aa6f7496d069afe7520c845c8a",
+    "semantic_hash": "637776aa6f7496d069afe7520c845c8a"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\PROJECT.md": {
+    "mtime": 1780397974.4227006,
+    "ast_hash": "b189a1dccad6009ce8de61d661d4e57c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\REQUIREMENTS.md": {
+    "mtime": 1778585589.0401838,
+    "ast_hash": "02283b13fb7e88d53e8a1f2ef7813c20",
+    "semantic_hash": "02283b13fb7e88d53e8a1f2ef7813c20"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\ROADMAP.md": {
+    "mtime": 1780415344.5031917,
+    "ast_hash": "7802e07f704e4d4d356e1afb71540c31",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\STATE.md": {
+    "mtime": 1780415339.4415426,
+    "ast_hash": "d24647fdd3fc41b9fee47fa7dfa4fbbe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\01-CONTEXT.md": {
+    "mtime": 1778508350.22745,
+    "ast_hash": "91a62b4f3dee33bb4601e52b4227e315",
+    "semantic_hash": "91a62b4f3dee33bb4601e52b4227e315"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\01-PLAN.md": {
+    "mtime": 1778509766.079534,
+    "ast_hash": "cbf82f45e9c9285aaa87e090debf6614",
+    "semantic_hash": "cbf82f45e9c9285aaa87e090debf6614"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\01-SUMMARY.md": {
+    "mtime": 1778585577.3519874,
+    "ast_hash": "75de88e85f3fc7ae330d556fb39e5d9b",
+    "semantic_hash": "75de88e85f3fc7ae330d556fb39e5d9b"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\02-PLAN.md": {
+    "mtime": 1778509444.6628604,
+    "ast_hash": "ae93a90fd6df09f7d5a1f32c04df8727",
+    "semantic_hash": "ae93a90fd6df09f7d5a1f32c04df8727"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\03-PLAN.md": {
+    "mtime": 1778508694.3552296,
+    "ast_hash": "ff7d2c8d1d06a449c39a29ab0a133489",
+    "semantic_hash": "ff7d2c8d1d06a449c39a29ab0a133489"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\02-ai-analysis-engine\\02-CONTEXT.md": {
+    "mtime": 1779176468.851366,
+    "ast_hash": "7a64376b7b91c2b7dda1a2bf39635ae1",
+    "semantic_hash": "7a64376b7b91c2b7dda1a2bf39635ae1"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\02-ai-analysis-engine\\02-PLAN.md": {
+    "mtime": 1779123627.7881255,
+    "ast_hash": "bd7f3a2161f6973223ad7bc9551fc77c",
+    "semantic_hash": "bd7f3a2161f6973223ad7bc9551fc77c"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\03-citations-scoring\\03-CONTEXT.md": {
+    "mtime": 1779186193.5484903,
+    "ast_hash": "9641e69b1fbe54f56f49e54209456a82",
+    "semantic_hash": "9641e69b1fbe54f56f49e54209456a82"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\03-citations-scoring\\03-PLAN.md": {
+    "mtime": 1779186326.8219066,
+    "ast_hash": "4aa702ff08a699b20bf4ef2ae1d05160",
+    "semantic_hash": "4aa702ff08a699b20bf4ef2ae1d05160"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\04-reporting-web-ui\\04-CONTEXT.md": {
+    "mtime": 1779189968.9613256,
+    "ast_hash": "35cebd734998ebaf8bca6820422820a9",
+    "semantic_hash": "35cebd734998ebaf8bca6820422820a9"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\04-reporting-web-ui\\04-PLAN.md": {
+    "mtime": 1779190154.8505723,
+    "ast_hash": "35f986dd565c192e434b434f3a1f1b2c",
+    "semantic_hash": "35f986dd565c192e434b434f3a1f1b2c"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\04-reporting-web-ui\\04-REVIEW.md": {
+    "mtime": 1779295967.3314793,
+    "ast_hash": "62adc696fda58f84dacea1a52b8f20a6",
+    "semantic_hash": "62adc696fda58f84dacea1a52b8f20a6"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\07-output-consistency-and-overall-refinement\\07-CONTEXT.md": {
+    "mtime": 1780143939.527104,
+    "ast_hash": "4c76929fa8dae3c505e3c80b1d46996e",
+    "semantic_hash": "4c76929fa8dae3c505e3c80b1d46996e"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\07-output-consistency-and-overall-refinement\\PLAN.md": {
+    "mtime": 1780143977.4664867,
+    "ast_hash": "42386ca1d5034b67e59808137bfc71d3",
+    "semantic_hash": "42386ca1d5034b67e59808137bfc71d3"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\requirements.txt": {
+    "mtime": 1779551602.6482444,
+    "ast_hash": "e4d87178c62f9a3d7dc8f64de3f141c0",
+    "semantic_hash": "e4d87178c62f9a3d7dc8f64de3f141c0"
+  },
+  "C:\\Users\\mohdf\\mini project\\MAIN_PROJECT\\run.md": {
+    "mtime": 1779459402.380365,
+    "ast_hash": "b5aca0f21137cad5c766f5f08ce0c560",
+    "semantic_hash": "b5aca0f21137cad5c766f5f08ce0c560"
+  },
+  "C:\\Users\\mohdf\\mini project\\skills\\pdf skill\\extracted\\antigravity-reportlab-pdf\\SKILL.md": {
+    "mtime": 1779215130.0,
+    "ast_hash": "2f85c71e60ae9b8fd7e6cbbf094adb2d",
+    "semantic_hash": "2f85c71e60ae9b8fd7e6cbbf094adb2d"
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\06-output-quality-optimization\\PLAN.md": {
+    "mtime": 1779552510.490494,
+    "ast_hash": "be6fdd68424489dc31bbd5358838b9d5",
+    "semantic_hash": "be6fdd68424489dc31bbd5358838b9d5"
+  },
+  "C:\\Users\\mohdf\\mini project\\frontend\\app.js": {
+    "mtime": 1780415280.122256,
+    "ast_hash": "a6d3b248164272088b2fe3426f5d986a",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\STITCH_FRONTEND_SPEC.md": {
+    "mtime": 1780415106.2123928,
+    "ast_hash": "1db8ed99dee75a67ff9c7175ec3a3757",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\FRONTEND_REQUIREMENTS.md": {
+    "mtime": 1780397933.2774103,
+    "ast_hash": "3db6bea61ebed076db4420aead23d213",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\02-SUMMARY.md": {
+    "mtime": 1780248876.2114775,
+    "ast_hash": "0c16787c3f912570ff300c6598d1cc75",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\01-environment-pdf-parser\\03-SUMMARY.md": {
+    "mtime": 1780248876.2124836,
+    "ast_hash": "cbe9ee212257372d0936a559da4ac169",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\02-ai-analysis-engine\\02-SUMMARY.md": {
+    "mtime": 1780248876.2135859,
+    "ast_hash": "8477ea714f26e7b6681acf6893d65588",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\03-citations-scoring\\03-SUMMARY.md": {
+    "mtime": 1780248876.2149625,
+    "ast_hash": "63e35ca5caadf19810bf744117bb65bd",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\04-reporting-web-ui\\04-SUMMARY.md": {
+    "mtime": 1780248876.3058145,
+    "ast_hash": "d5bfcc47cc450ea1fd1eab9c3b406ad6",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\05-gemini-7-layer-ai-analysis-engine\\01-PLAN.md": {
+    "mtime": 1780248934.6919973,
+    "ast_hash": "9eca7ee8171fb8895a2238cb351b15c1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\05-gemini-7-layer-ai-analysis-engine\\01-SUMMARY.md": {
+    "mtime": 1780248937.5638936,
+    "ast_hash": "f75fd9b31b7375c51b9bf9f24318ea2b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\06-output-quality-optimization\\SUMMARY.md": {
+    "mtime": 1780248876.3068185,
+    "ast_hash": "1a97c55581d34dfb937f41c1247ba835",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\07-output-consistency-and-overall-refinement\\SUMMARY.md": {
+    "mtime": 1780248876.307834,
+    "ast_hash": "4ef0043aa4c6f7819cfdd1d07ebd2a9b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\08-web-frontend-dashboard\\08-CONTEXT.md": {
+    "mtime": 1780397954.7550387,
+    "ast_hash": "91e7e5c574a310208f6771fb2a30d0b1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\08-web-frontend-dashboard\\PLAN.md": {
+    "mtime": 1780415201.5991466,
+    "ast_hash": "935521e27e08d33000f37d5d446d165b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\.planning\\phases\\08-web-frontend-dashboard\\SUMMARY.md": {
+    "mtime": 1780415335.6979961,
+    "ast_hash": "8e841378735b7c77204217616c4f6702",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\frontend\\index.html": {
+    "mtime": 1780415255.1418726,
+    "ast_hash": "f79c3ab3c482d967b618423e0538a858",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\sample_paper_data.json": {
+    "mtime": 1780416182.1936982,
+    "ast_hash": "4f488e4f98cf9a938f7c11bc3ff2d919",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\FRONTEND_INTEGRATION_GUIDE.md": {
+    "mtime": 1780417120.7724082,
+    "ast_hash": "2d34e0170f84eb9dab07894af68de604",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\mohdf\\mini project\\PROJECT_MANUAL.md": {
+    "mtime": 1780417278.2403424,
+    "ast_hash": "3b34e73653a886702a426c906dc09d71",
+    "semantic_hash": ""
+  }
+}

@@ -116,7 +116,7 @@ def _call_single_key(key_name: str, client, prompt: str,
             if is_transient and attempt < max_retries - 1:
                 api_delay = _parse_retry_delay(err_str)
                 wait_time = max(delay, api_delay + 2.0) if api_delay > 0 else delay
-                print(f"   [Retry] {key_name} error. Waiting {wait_time:.0f}s "
+                print(f"   [Retry] {key_name} error ({e}). Waiting {wait_time:.0f}s "
                       f"(attempt {attempt+1}/{max_retries})...", flush=True)
                 time.sleep(wait_time)
                 delay = min(delay * 2.0, 60.0)
@@ -137,9 +137,9 @@ def _call_llm_with_failover(prompt: str) -> str:
             last_error = e
             err_str = str(e)
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                print(f"   [Rotate] {key_name} quota exhausted → trying next key...", flush=True)
+                print(f"   [Rotate] {key_name} quota exhausted: {e} → trying next key...", flush=True)
             else:
-                print(f"   [Rotate] {key_name} failed → trying next key...", flush=True)
+                print(f"   [Rotate] {key_name} failed: {e} → trying next key...", flush=True)
 
     raise RuntimeError(f"All {len(_clients)} Gemini keys exhausted: {last_error}")
 

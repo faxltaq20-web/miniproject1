@@ -20,17 +20,17 @@ Give professors an instant, objective review instrument — upload a paper and g
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] PDF upload and text extraction (basic PyMuPDF)
-- [ ] Automatic section detection (regex-only)
-- [ ] 8-layer analysis engine (Gemini API for layers 1-7, Regex + CrossRef for layer 8)
-- [ ] Weighted scoring algorithm producing 0-100 confidence score with letter grade
-- [ ] Structured PDF report generation (ReportLab)
+- [x] PDF upload and text extraction (basic PyMuPDF & smart PyMuPDF4LLM)
+- [x] Automatic section detection (with high-fidelity fallback & confidence scores)
+- [x] 8-layer analysis engine (restructured to 5-layer premium matching reference UI)
+- [x] Weighted scoring algorithm producing 0-100 confidence score with letter grade
+- [x] Structured PDF report generation (ReportLab PLATYPUS cover page & custom flowables)
 - [ ] Web UI with drag-and-drop upload and results display
-- [ ] FastAPI backend orchestrating the full pipeline
-- [ ] Citation verification via Regex DOI extraction
-- [ ] DOI validation via CrossRef API
-- [ ] Rate limit handling with retry logic for all external APIs
-- [ ] Graceful error handling for invalid PDFs, empty sections, and API failures
+- [x] FastAPI backend orchestrating the full pipeline
+- [x] Citation verification via Semantic Scholar Title Search
+- [x] DOI validation via CrossRef API
+- [x] Rate limit handling with retry logic & auto-backoff for all external APIs
+- [x] Graceful error handling and diagnostics (/health endpoint)
 
 ### Out of Scope
 
@@ -70,13 +70,13 @@ Give professors an instant, objective review instrument — upload a paper and g
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Gemini 2.5 Flash as primary AI engine | Free tier, 1M token context, strong JSON output | — Pending |
-| PyMuPDF for PDF extraction | Best free option for native PDFs, OCR fallback available | — Pending |
-| FastAPI for backend | Python-native, async file uploads, auto-generated docs | — Pending |
-| Simple HTML/CSS/JS frontend | Sufficient for university demo, no framework complexity | — Pending |
-| ReportLab for PDF reports | Free, Python-native, professional output | — Pending |
-| 8-layer weighted scoring (specific weights in research doc) | Research-backed criteria from peer review standards | — Pending |
-| Basic PyMuPDF for text extraction | Sufficient for MVP, removes heavy pymupdf4llm dependency | — Pending |
+| Gemini 2.5 Flash as primary AI engine | Free tier, 1M token context, strong JSON output | — Approved |
+| PyMuPDF for PDF extraction | Best free option for native PDFs, OCR fallback available | — Approved |
+| FastAPI for backend | Python-native, async file uploads, auto-generated docs | — Approved |
+| Simple HTML/CSS/JS frontend | Sufficient for university demo, no framework complexity | — Active |
+| ReportLab for PDF reports | Free, Python-native, professional output | — Approved |
+| 8-layer weighted scoring | Restructured to 5-layer premium matching reference UI | — Approved |
+| Upgraded to PyMuPDF4LLM | Restructure text extraction for smarter markdown parsing | — Approved |
 
 ## Evolution
 
