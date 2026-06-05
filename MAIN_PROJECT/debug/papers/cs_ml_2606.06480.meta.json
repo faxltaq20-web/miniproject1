@@ -1,0 +1,17 @@
+{
+  "source": "arxiv",
+  "arxiv_id": "2606.06480",
+  "category": "Computer Science \u2014 Machine Learning",
+  "title": "DNQ: Deep Nash Q-Network for Partially Observable n-Player Games",
+  "expected_sections": [
+    "abstract",
+    "introduction",
+    "related_work",
+    "methodology",
+    "results",
+    "conclusion",
+    "references"
+  ],
+  "has_dois": true,
+  "expected_ref_count": null
+}

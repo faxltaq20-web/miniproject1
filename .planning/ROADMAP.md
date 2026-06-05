@@ -11,6 +11,7 @@
 | [Phase 6: Output Quality Optimization](#phase-6-output-quality-optimization) | Improve analysis accuracy, report quality, and pipeline robustness |
 | [Phase 7: Output Consistency and Overall Refinement](#phase-7-output-consistency-and-overall-refinement) | Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs |
 | [Phase 8: Web Frontend Dashboard](#phase-8-web-frontend-dashboard) | Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading |
+| [Phase 9: Automated End-to-End Debugging](#phase-9-automated-end-to-end-debugging) | Auto-fetch real academic papers, run the full pipeline with Gemini AI API, and validate nothing is missing |
 
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
@@ -184,3 +185,38 @@ Plans:
 - [x] Plan 2: Modern Glassmorphic Design System (CSS)
 - [x] Plan 3: Client Orchestration & API Connectivity (JS)
 - [x] Plan 4: PDF Downloading & Offline Mock Demo
+
+---
+
+## Phase 9: Automated End-to-End Debugging
+**Goal:** Build an automated test harness that fetches real academic papers from open-access sources (arXiv, Semantic Scholar OA), runs each through the full ResearchSense pipeline (PDF parse → section detect → Gemini AI analysis → citation check → scoring → report generation), and validates that nothing is missing, broken, or inconsistent — catching bugs across diverse paper types before demo day.
+
+**Depends on:** Phase 8 (all pipeline and UI components must be operational)
+
+**Requirements Mapped:**
+- DEBUG-01: Automated paper fetcher pulls real PDFs from arXiv and Semantic Scholar Open Access APIs
+- DEBUG-02: Full pipeline runner executes /analyze and /report endpoints against each fetched paper
+- DEBUG-03: Output validator checks response schemas, score ranges, section detection completeness, and report PDF integrity
+- DEBUG-04: Gap analysis compares pipeline output against paper metadata (expected sections, citation counts, DOI presence) to flag missing coverage
+- DEBUG-05: Regression test suite records baseline results and detects score drift across runs
+- DEBUG-06: Summary report aggregates pass/fail/warning counts across all test papers with detailed diagnostics
+
+**Success Criteria:**
+1. Test harness fetches ≥5 diverse real papers automatically (CS, medicine, social science, review papers, short papers)
+2. Each paper runs through the full `/analyze` → `/report` pipeline without crashes
+3. All response JSON schemas match expected structure (layer_scores, layer_details, citation_result, final_score, grade)
+4. Score values are within valid ranges (0-10 per layer, 0-100 final score, valid grade letters)
+5. Section detection handles diverse paper structures (non-standard headings, missing sections) gracefully
+6. Citation checker correctly processes papers with and without DOIs
+7. PDF report generation succeeds for all test papers without layout errors
+8. Gap analysis identifies any layers returning fallback/default scores and flags them
+9. Summary report produced with per-paper pass/fail status and aggregate statistics
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] Plan 1: Real Paper Fetcher — arXiv & Semantic Scholar OA
+- [ ] Plan 2: Full Pipeline Runner — `/analyze` + `/report` per Paper
+- [ ] Plan 3: Output Validator & Gap Analyzer — Schema + Completeness Checks
+- [ ] Plan 4: Summary Report Generator — Human-Readable Diagnostic Output
+

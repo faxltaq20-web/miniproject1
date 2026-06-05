@@ -1,0 +1,17 @@
+{
+  "source": "arxiv",
+  "arxiv_id": "2606.01015",
+  "category": "Computer Science \u2014 AI Survey/Review",
+  "title": "AI-IoT-Robotics Integration: Survey of Frameworks, Emerging Trends, and the Path Toward Connected Robotics",
+  "expected_sections": [
+    "abstract",
+    "introduction",
+    "related_work",
+    "methodology",
+    "discussion",
+    "conclusion",
+    "references"
+  ],
+  "has_dois": true,
+  "expected_ref_count": null
+}

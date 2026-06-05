@@ -1,0 +1,17 @@
+{
+  "source": "arxiv",
+  "arxiv_id": "2606.02625",
+  "category": "Quantitative Biology \u2014 Quantitative Methods",
+  "title": "DXA-Derived Skeletal Phenotypes and Hip Fracture Risk: A Backdoor-Adjusted Causal Analysis",
+  "expected_sections": [
+    "abstract",
+    "introduction",
+    "methodology",
+    "results",
+    "discussion",
+    "conclusion",
+    "references"
+  ],
+  "has_dois": true,
+  "expected_ref_count": null
+}

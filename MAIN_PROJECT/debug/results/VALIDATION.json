@@ -1,0 +1,250 @@
+[
+  {
+    "paper": "cs_ml_2606.06480",
+    "title": "DNQ: Deep Nash Q-Network for Partially Observable n-Player Games",
+    "category": "Computer Science \u2014 Machine Learning",
+    "analyze_status": 200,
+    "analyze_time_ms": 21867,
+    "final_score": 20.0,
+    "grade": "F \u2014 Very Poor",
+    "schema_ok": true,
+    "score_ranges_ok": true,
+    "layer_details_ok": false,
+    "fallback_layers": [],
+    "section_gaps": [
+      {
+        "gap_type": "missing_section",
+        "section": "abstract",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "introduction",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "related_work",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "methodology",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "results",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "conclusion",
+        "expected": true,
+        "detected": false
+      }
+    ],
+    "citation_gaps": [
+      {
+        "gap_type": "doi_extraction_failure",
+        "detail": "Paper expected to have DOIs but none were extracted (total_refs=21)"
+      }
+    ],
+    "report_pdf_ok": true,
+    "warnings": [
+      "layer methodology_rigor returned score 0 \u2014 possible analysis failure",
+      "layer evidence_claims returned score 0 \u2014 possible analysis failure",
+      "Expected sections not detected: ['abstract', 'introduction', 'related_work', 'methodology', 'results', 'conclusion']",
+      "Citation gap: doi_extraction_failure \u2014 Paper expected to have DOIs but none were extracted (total_refs=21)"
+    ],
+    "errors": [],
+    "status": "WARN"
+  },
+  {
+    "paper": "bio_medical_2606.02625",
+    "title": "DXA-Derived Skeletal Phenotypes and Hip Fracture Risk: A Backdoor-Adjusted Causal Analysis",
+    "category": "Quantitative Biology \u2014 Quantitative Methods",
+    "analyze_status": 200,
+    "analyze_time_ms": 40939,
+    "final_score": 47.5,
+    "grade": "D \u2014 Poor",
+    "schema_ok": true,
+    "score_ranges_ok": true,
+    "layer_details_ok": true,
+    "fallback_layers": [],
+    "section_gaps": [
+      {
+        "gap_type": "missing_section",
+        "section": "abstract",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "methodology",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "references",
+        "expected": true,
+        "detected": false
+      }
+    ],
+    "citation_gaps": [],
+    "report_pdf_ok": true,
+    "warnings": [
+      "Expected sections not detected: ['abstract', 'methodology', 'references']"
+    ],
+    "errors": [],
+    "status": "WARN"
+  },
+  {
+    "paper": "physics_short_2605.29839",
+    "title": "The Topological Stability Index: A Variance-Based Measure for Persistence Barcodes",
+    "category": "Physics \u2014 Data Analysis",
+    "analyze_status": 200,
+    "analyze_time_ms": 62444,
+    "final_score": 52.5,
+    "grade": "D \u2014 Poor",
+    "schema_ok": true,
+    "score_ranges_ok": true,
+    "layer_details_ok": false,
+    "fallback_layers": [],
+    "section_gaps": [
+      {
+        "gap_type": "missing_section",
+        "section": "abstract",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "methodology",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "results",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "conclusion",
+        "expected": true,
+        "detected": false
+      }
+    ],
+    "citation_gaps": [],
+    "report_pdf_ok": true,
+    "warnings": [
+      "layer methodology_rigor returned score 0 \u2014 possible analysis failure",
+      "Expected sections not detected: ['abstract', 'methodology', 'results', 'conclusion']"
+    ],
+    "errors": [],
+    "status": "WARN"
+  },
+  {
+    "paper": "econ_social_2606.00614",
+    "title": "Mitigation of spatial economic impact propagation of highway disruptions by redundant networks",
+    "category": "Economics \u2014 General",
+    "analyze_status": 200,
+    "analyze_time_ms": 46003,
+    "final_score": 65.0,
+    "grade": "C \u2014 Needs Improvement",
+    "schema_ok": true,
+    "score_ranges_ok": true,
+    "layer_details_ok": true,
+    "fallback_layers": [],
+    "section_gaps": [
+      {
+        "gap_type": "missing_section",
+        "section": "results",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "conclusion",
+        "expected": true,
+        "detected": false
+      }
+    ],
+    "citation_gaps": [],
+    "report_pdf_ok": true,
+    "warnings": [
+      "Expected sections not detected: ['results', 'conclusion']"
+    ],
+    "errors": [],
+    "status": "WARN"
+  },
+  {
+    "paper": "cs_survey_2606.01015",
+    "title": "AI-IoT-Robotics Integration: Survey of Frameworks, Emerging Trends, and the Path Toward Connected Robotics",
+    "category": "Computer Science \u2014 AI Survey/Review",
+    "analyze_status": 200,
+    "analyze_time_ms": 52094,
+    "final_score": 11.4,
+    "grade": "F \u2014 Very Poor",
+    "schema_ok": true,
+    "score_ranges_ok": true,
+    "layer_details_ok": false,
+    "fallback_layers": [],
+    "section_gaps": [
+      {
+        "gap_type": "missing_section",
+        "section": "abstract",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "introduction",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "related_work",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "methodology",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "discussion",
+        "expected": true,
+        "detected": false
+      },
+      {
+        "gap_type": "missing_section",
+        "section": "conclusion",
+        "expected": true,
+        "detected": false
+      }
+    ],
+    "citation_gaps": [],
+    "report_pdf_ok": true,
+    "warnings": [
+      "layer clarity_writing returned score 0 \u2014 possible analysis failure",
+      "layer methodology_rigor returned score 0 \u2014 possible analysis failure",
+      "layer evidence_claims returned score 0 \u2014 possible analysis failure",
+      "Expected sections not detected: ['abstract', 'introduction', 'related_work', 'methodology', 'discussion', 'conclusion']"
+    ],
+    "errors": [],
+    "status": "WARN"
+  }
+]

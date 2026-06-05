@@ -1,0 +1,86 @@
+{
+  "filename": "econ_social_2606.00614.pdf",
+  "detected_sections": {
+    "Abstract": 91,
+    "Introduction": 93,
+    "Related Work": 91,
+    "Methods": 99,
+    "References": 97
+  },
+  "section_count": 5,
+  "warnings": [
+    "conclusion"
+  ],
+  "layer_scores": {
+    "structure_sections": 7.0,
+    "clarity_writing": 8.0,
+    "methodology_rigor": 6.0,
+    "evidence_claims": 3.0,
+    "citations": 10.0
+  },
+  "layer_details": {
+    "structure_sections": {
+      "score": 7,
+      "issues": [
+        "The 'Related Work' section is truncated, ending mid-sentence, which prevents a full assessment of its scope and depth.",
+        "The 'Methodology' section is also truncated very early, just after defining conceptual states, leaving the core operational details of the approach undescribed."
+      ],
+      "suggestions": [
+        "Ensure the 'Related Work' section is complete and thoroughly discusses how the current study differentiates itself from and builds upon prior research.",
+        "Provide a complete and detailed 'Methodology' section, including all model specifications, data sources, and computational procedures."
+      ]
+    },
+    "clarity_writing": {
+      "score": 8,
+      "issues": [
+        "Some sentences are quite lengthy and could benefit from rephrasing or splitting to improve conciseness and flow (e.g., the sentence describing MLIT's emphasis in the Introduction).",
+        "Minor grammatical inconsistencies, such as the verb agreement in 'Zhu et al. [2023] develops,' should be reviewed for precision."
+      ],
+      "suggestions": [
+        "Review and revise long sentences to enhance readability and academic precision, ensuring clarity without sacrificing detail.",
+        "Conduct a thorough proofread to catch and correct all minor grammatical errors, punctuation issues, and awkward phrasing."
+      ]
+    },
+    "methodology_rigor": {
+      "score": 6,
+      "issues": [
+        "The methodology section is severely truncated, preventing a comprehensive understanding of the experimental design, specific model implementation (SCGE), and data integration.",
+        "Crucial details regarding the specific datasets used for the Chugoku region, their characteristics, and how 'changes in travel time' and 'negative benefits' are precisely quantified are missing."
+      ],
+      "suggestions": [
+        "Provide a complete and exhaustive description of the SCGE model, including its theoretical foundations, key equations, and how road network disruptions are translated into economic parameters.",
+        "Clearly enumerate all data sources, their spatial and temporal resolution, and the specific steps taken for data collection, processing, and integration into the model."
+      ]
+    },
+    "evidence_claims": {
+      "score": 3,
+      "issues": [
+        "The central claim in the abstract, 'the economic vulnerability reduction effect is more far-reaching than the transportation impacts,' is presented without any supporting results or data in the provided excerpt.",
+        "Without the results and discussion sections, it is impossible to evaluate the logical consistency between the study's findings and the conclusions drawn, or to identify any potential overgeneralizations."
+      ],
+      "suggestions": [
+        "Ensure that the 'Results' section explicitly presents the quantitative evidence (e.g., tables, figures, statistical analyses) that directly substantiates the claims made in the abstract.",
+        "The 'Discussion' section should thoroughly interpret these results, explaining how they support the conclusions and addressing any limitations or alternative explanations."
+      ]
+    },
+    "citations": {
+      "score": 10.0,
+      "issues": [
+        "All 12 DOI(s) verified successfully."
+      ],
+      "suggestions": [
+        "No citation issues found."
+      ]
+    }
+  },
+  "final_score": 65.0,
+  "grade": "C \u2014 Needs Improvement",
+  "citation_result": {
+    "total_refs": 13,
+    "verified": 12,
+    "not_found": 0,
+    "unreachable": 0,
+    "flagged_dois": [],
+    "flagged_items": []
+  }
+}

@@ -1,0 +1,531 @@
+[
+  {
+    "paper": "cs_ml_2606.06480",
+    "title": "DNQ: Deep Nash Q-Network for Partially Observable n-Player Games",
+    "category": "Computer Science \u2014 Machine Learning",
+    "analyze_status": 200,
+    "analyze_time_ms": 21867,
+    "report_status": 200,
+    "report_size_bytes": 10636,
+    "analyze_response": {
+      "filename": "cs_ml_2606.06480.pdf",
+      "detected_sections": {
+        "References": 97
+      },
+      "section_count": 1,
+      "warnings": [
+        "abstract",
+        "methodology",
+        "conclusion"
+      ],
+      "layer_scores": {
+        "structure_sections": 1.0,
+        "clarity_writing": 6.0,
+        "methodology_rigor": 0.0,
+        "evidence_claims": 0.0,
+        "citations": 3.0
+      },
+      "layer_details": {
+        "structure_sections": {
+          "score": 1,
+          "issues": [
+            "Only the 'REFERENCES' section is present in the provided excerpt, indicating a complete absence of all other standard academic sections (e.g., Abstract, Introduction, Methodology, Results, Conclusion).",
+            "It is impossible to assess the logical flow, transitions, or balance between sections as only one section is available."
+          ],
+          "suggestions": [
+            "Ensure the full paper includes all standard academic sections, such as Abstract, Introduction, Related Work, Methodology, Results, Discussion, and Conclusion.",
+            "Structure the paper with a clear and logical progression of ideas, ensuring smooth transitions between all sections and subsections."
+          ]
+        },
+        "clarity_writing": {
+          "score": 6,
+          "issues": [
+            "Reference [19] contains an instruction to the author ('please replace with the exact Casgrain et al. deep Nash Q-related paper you intend to cite (title/venue differ across versions)') instead of a complete and properly formatted citation.",
+            "The citation style, while generally consistent, is not explicitly stated, and some entries like [19] use 'arXiv / venue varies' which is not a standard, stable publication venue for a final reference list."
+          ],
+          "suggestions": [
+            "Correct reference [19] to be a complete and accurate citation to the intended publication, removing any author instructions or placeholders.",
+            "Explicitly state the chosen citation style (e.g., IEEE, APA) and ensure all references strictly adhere to its guidelines for consistency and academic rigor."
+          ]
+        },
+        "methodology_rigor": {
+          "score": 0,
+          "issues": [
+            "No methodology section is present in the provided excerpt, making it impossible to assess the experimental design, datasets, or evaluation metrics used.",
+            "Details regarding the approach, baseline comparisons, or sufficient information for understanding and replicating the work are entirely absent."
+          ],
+          "suggestions": [
+            "Include a comprehensive Methodology section that clearly describes the experimental setup, algorithms, datasets, and evaluation procedures.",
+            "Provide sufficient detail for the experimental design, including specific parameters, tools, and data sources, to ensure reproducibility and transparency."
+          ]
+        },
+        "evidence_claims": {
+          "score": 0,
+          "issues": [
+            "No claims, results, or conclusions are presented in the provided excerpt, making it impossible to evaluate whether claims are supported by evidence or data.",
+            "The consistency between abstract claims and findings cannot be assessed as neither an abstract nor any findings are present."
+          ],
+          "suggestions": [
+            "Ensure all claims made in the paper are directly supported by empirical evidence, experimental results, or logical arguments presented within the text.",
+            "Clearly articulate the conclusions drawn from the results, discuss their implications, and acknowledge any limitations or potential biases."
+          ]
+        },
+        "citations": {
+          "score": 3.0,
+          "issues": [
+            "No DOIs found in references section.",
+            "Title verification: 0/5 references verified via Semantic Scholar."
+          ],
+          "suggestions": [
+            "Include DOIs for all cited works to improve citation verifiability.",
+            "Papers with verifiable DOIs receive higher citation scores."
+          ]
+        }
+      },
+      "final_score": 20.0,
+      "grade": "F \u2014 Very Poor",
+      "citation_result": {
+        "total_refs": 21,
+        "verified": 0,
+        "not_found": 5,
+        "unreachable": 0,
+        "flagged_dois": [],
+        "flagged_items": []
+      }
+    },
+    "error": null
+  },
+  {
+    "paper": "bio_medical_2606.02625",
+    "title": "DXA-Derived Skeletal Phenotypes and Hip Fracture Risk: A Backdoor-Adjusted Causal Analysis",
+    "category": "Quantitative Biology \u2014 Quantitative Methods",
+    "analyze_status": 200,
+    "analyze_time_ms": 40939,
+    "report_status": 200,
+    "report_size_bytes": 10121,
+    "analyze_response": {
+      "filename": "bio_medical_2606.02625.pdf",
+      "detected_sections": {
+        "Introduction": 95,
+        "Results": 99,
+        "Discussion": 95,
+        "Conclusion": 96
+      },
+      "section_count": 4,
+      "warnings": [
+        "abstract",
+        "methodology"
+      ],
+      "layer_scores": {
+        "structure_sections": 5.0,
+        "clarity_writing": 8.0,
+        "methodology_rigor": 3.0,
+        "evidence_claims": 5.0,
+        "citations": 0.0
+      },
+      "layer_details": {
+        "structure_sections": {
+          "score": 5,
+          "issues": [
+            "A dedicated 'Methodology' section is entirely absent from the provided excerpt, making it impossible to understand the experimental design, data processing, and analytical approach in detail.",
+            "The 'Related Work' section is not explicitly present as a standalone section; its content is partially integrated into the Introduction and Discussion, which can dilute its impact and clarity."
+          ],
+          "suggestions": [
+            "Ensure a comprehensive 'Methodology' section is included, detailing the DAG-guided framework, specific statistical models, data preprocessing, and how ATEs/CATEs were calculated.",
+            "Consider creating a distinct 'Related Work' section to systematically review and position the current study against existing literature on hip fracture risk prediction and causal inference."
+          ]
+        },
+        "clarity_writing": {
+          "score": 8,
+          "issues": [
+            "Some sentences, particularly in the Introduction, are quite long and dense, which could occasionally hinder immediate comprehension for readers less familiar with the specific terminology.",
+            "The use of acronyms like 'ATEs' and 'CATEs' without initial full definitions in the Discussion and Conclusion sections (assuming they were defined in a missing Methodology) could be confusing if the reader only sees these sections."
+          ],
+          "suggestions": [
+            "Consider breaking down some of the longer sentences into two or more shorter, more focused sentences to improve readability without sacrificing academic rigor.",
+            "Ensure all acronyms are defined upon their first use in the paper, or at least in the Abstract and Introduction, to maintain clarity across all sections."
+          ]
+        },
+        "methodology_rigor": {
+          "score": 3,
+          "issues": [
+            "The core 'DAG-guided backdoor-adjustment framework' and the specific statistical methods used for causal inference (ATEs, CATEs) are not described at all, making it impossible to understand or replicate the study's primary analytical approach.",
+            "Details regarding the 'supplementary predictive evaluation,' including the specific machine learning models, feature selection process, and evaluation metrics (e.g., AUC, sensitivity, specificity), are completely absent."
+          ],
+          "suggestions": [
+            "Provide a dedicated and detailed 'Methodology' section that thoroughly explains the DAG construction, variable selection for backdoor adjustment, the specific causal inference models employed, and how ATEs and CATEs were estimated.",
+            "Elaborate on the 'supplementary predictive evaluation' by describing the algorithms used, how features were combined, the specific discrimination metrics reported, and the cross-validation strategy."
+          ]
+        },
+        "evidence_claims": {
+          "score": 5,
+          "issues": [
+            "While the Discussion and Conclusion summarize findings, the actual quantitative results, statistical significance, confidence intervals, and full 'Table 2' (and any other results tables/figures) are missing, preventing a thorough evaluation of the evidence supporting the claims.",
+            "The claim of 'improved discrimination compared with FRAX' in the supplementary predictive evaluation is significant but lacks specific metrics (e.g., AUC values, p-values) and a detailed comparison to substantiate its strength."
+          ],
+          "suggestions": [
+            "Present all relevant quantitative results, including full tables (like Table 2), figures, statistical measures (e.g., ATE values, CIs, p-values), and discrimination metrics (e.g., AUC with CIs) in a dedicated 'Results' section.",
+            "For the predictive evaluation, explicitly state the performance metrics for both the proposed model and FRAX, including statistical comparisons, to fully support the claim of improved discrimination."
+          ]
+        },
+        "citations": {
+          "score": 0.0,
+          "issues": [
+            "No references section found in document."
+          ],
+          "suggestions": [
+            "Add a References section with properly formatted citations including DOIs."
+          ]
+        }
+      },
+      "final_score": 47.5,
+      "grade": "D \u2014 Poor",
+      "citation_result": {
+        "total_refs": 0,
+        "verified": 0,
+        "not_found": 0,
+        "unreachable": 0,
+        "flagged_dois": [],
+        "flagged_items": []
+      }
+    },
+    "error": null
+  },
+  {
+    "paper": "physics_short_2605.29839",
+    "title": "The Topological Stability Index: A Variance-Based Measure for Persistence Barcodes",
+    "category": "Physics \u2014 Data Analysis",
+    "analyze_status": 200,
+    "analyze_time_ms": 62444,
+    "report_status": 200,
+    "report_size_bytes": 11129,
+    "analyze_response": {
+      "filename": "physics_short_2605.29839.pdf",
+      "detected_sections": {
+        "Introduction": 95,
+        "References": 99
+      },
+      "section_count": 2,
+      "warnings": [
+        "abstract",
+        "methodology",
+        "conclusion"
+      ],
+      "layer_scores": {
+        "structure_sections": 7.0,
+        "clarity_writing": 9.0,
+        "methodology_rigor": 0.0,
+        "evidence_claims": 8.0,
+        "citations": 0.0
+      },
+      "layer_details": {
+        "structure_sections": {
+          "score": 7,
+          "issues": [
+            "The provided introduction, while comprehensive in background, does not explicitly state the specific research question, hypothesis, or the unique contribution of this paper.",
+            "The introduction effectively reviews related work but doesn't clearly delineate the gap that the current work aims to fill, which is crucial for setting the stage for the paper's novelty."
+          ],
+          "suggestions": [
+            "Conclude the introduction with a clear and concise statement of the paper's specific objectives, research questions, or the novel approach being proposed.",
+            "Explicitly highlight the research gap that the current work addresses, building upon the discussion of existing approaches and their limitations."
+          ]
+        },
+        "clarity_writing": {
+          "score": 9,
+          "issues": [
+            "Some sentences are quite long, which, while grammatically correct, could occasionally challenge immediate readability for a non-expert.",
+            "The use of 'i.e.' could sometimes be integrated more smoothly into the sentence structure for enhanced flow."
+          ],
+          "suggestions": [
+            "Consider breaking down a few of the longer, more complex sentences into two shorter ones to improve readability without sacrificing academic precision.",
+            "Occasionally rephrase sentences to integrate explanations more naturally, potentially reducing reliance on parenthetical 'i.e.' constructions."
+          ]
+        },
+        "methodology_rigor": {
+          "score": 0,
+          "issues": [
+            "The paper's own experimental design, algorithms, and parameters are not described in the provided text.",
+            "No specific datasets, evaluation metrics, or baseline comparisons for the proposed work are mentioned."
+          ],
+          "suggestions": [
+            "A dedicated methodology section must clearly detail the experimental setup, including the proposed algorithms, their implementation, and any specific parameters used.",
+            "Specify the datasets utilized for experiments, the chosen evaluation metrics, and the baseline methods against which the proposed approach will be compared."
+          ]
+        },
+        "evidence_claims": {
+          "score": 8,
+          "issues": [
+            "The introduction, by its nature, does not present the novel claims or empirical evidence that will form the core contribution of the paper.",
+            "While background claims are well-cited, the introduction doesn't explicitly state the specific hypothesis or main claim that the paper aims to prove or investigate."
+          ],
+          "suggestions": [
+            "Ensure that the paper's main claims or hypotheses are clearly articulated in the introduction to set expectations for the evidence to follow.",
+            "In subsequent sections (e.g., Results, Discussion), ensure all novel claims are directly supported by robust experimental data, theoretical derivations, or rigorous analysis."
+          ]
+        },
+        "citations": {
+          "score": 0.0,
+          "issues": [
+            "7 of 7 DOI(s) could not be verified (not found in CrossRef)."
+          ],
+          "suggestions": [
+            "Check flagged DOIs for typos or confirm they are published in indexed journals."
+          ]
+        }
+      },
+      "final_score": 52.5,
+      "grade": "D \u2014 Poor",
+      "citation_result": {
+        "total_refs": 23,
+        "verified": 0,
+        "not_found": 7,
+        "unreachable": 0,
+        "flagged_dois": [
+          "10.1007/s10844-017-0473-4`",
+          "10.1007/s10444-02109893-4`",
+          "10.1007/s00454-006-1276-5`",
+          "10.1016/0022247X(71)90029-1`",
+          "10.1088/0266-5611/27/12/124007`",
+          "10.1007/s41468-017-0008-7`",
+          "10.1007/s00454-004-1146-y`"
+        ],
+        "flagged_items": [
+          {
+            "citation": "10.1007/s10844-017-0473-4`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1007/s10444-02109893-4`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1007/s00454-006-1276-5`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1016/0022247X(71)90029-1`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1088/0266-5611/27/12/124007`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1007/s41468-017-0008-7`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          },
+          {
+            "citation": "10.1007/s00454-004-1146-y`",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          }
+        ]
+      }
+    },
+    "error": null
+  },
+  {
+    "paper": "econ_social_2606.00614",
+    "title": "Mitigation of spatial economic impact propagation of highway disruptions by redundant networks",
+    "category": "Economics \u2014 General",
+    "analyze_status": 200,
+    "analyze_time_ms": 46003,
+    "report_status": 200,
+    "report_size_bytes": 10628,
+    "analyze_response": {
+      "filename": "econ_social_2606.00614.pdf",
+      "detected_sections": {
+        "Abstract": 91,
+        "Introduction": 93,
+        "Related Work": 91,
+        "Methods": 99,
+        "References": 97
+      },
+      "section_count": 5,
+      "warnings": [
+        "conclusion"
+      ],
+      "layer_scores": {
+        "structure_sections": 7.0,
+        "clarity_writing": 8.0,
+        "methodology_rigor": 6.0,
+        "evidence_claims": 3.0,
+        "citations": 10.0
+      },
+      "layer_details": {
+        "structure_sections": {
+          "score": 7,
+          "issues": [
+            "The 'Related Work' section is truncated, ending mid-sentence, which prevents a full assessment of its scope and depth.",
+            "The 'Methodology' section is also truncated very early, just after defining conceptual states, leaving the core operational details of the approach undescribed."
+          ],
+          "suggestions": [
+            "Ensure the 'Related Work' section is complete and thoroughly discusses how the current study differentiates itself from and builds upon prior research.",
+            "Provide a complete and detailed 'Methodology' section, including all model specifications, data sources, and computational procedures."
+          ]
+        },
+        "clarity_writing": {
+          "score": 8,
+          "issues": [
+            "Some sentences are quite lengthy and could benefit from rephrasing or splitting to improve conciseness and flow (e.g., the sentence describing MLIT's emphasis in the Introduction).",
+            "Minor grammatical inconsistencies, such as the verb agreement in 'Zhu et al. [2023] develops,' should be reviewed for precision."
+          ],
+          "suggestions": [
+            "Review and revise long sentences to enhance readability and academic precision, ensuring clarity without sacrificing detail.",
+            "Conduct a thorough proofread to catch and correct all minor grammatical errors, punctuation issues, and awkward phrasing."
+          ]
+        },
+        "methodology_rigor": {
+          "score": 6,
+          "issues": [
+            "The methodology section is severely truncated, preventing a comprehensive understanding of the experimental design, specific model implementation (SCGE), and data integration.",
+            "Crucial details regarding the specific datasets used for the Chugoku region, their characteristics, and how 'changes in travel time' and 'negative benefits' are precisely quantified are missing."
+          ],
+          "suggestions": [
+            "Provide a complete and exhaustive description of the SCGE model, including its theoretical foundations, key equations, and how road network disruptions are translated into economic parameters.",
+            "Clearly enumerate all data sources, their spatial and temporal resolution, and the specific steps taken for data collection, processing, and integration into the model."
+          ]
+        },
+        "evidence_claims": {
+          "score": 3,
+          "issues": [
+            "The central claim in the abstract, 'the economic vulnerability reduction effect is more far-reaching than the transportation impacts,' is presented without any supporting results or data in the provided excerpt.",
+            "Without the results and discussion sections, it is impossible to evaluate the logical consistency between the study's findings and the conclusions drawn, or to identify any potential overgeneralizations."
+          ],
+          "suggestions": [
+            "Ensure that the 'Results' section explicitly presents the quantitative evidence (e.g., tables, figures, statistical analyses) that directly substantiates the claims made in the abstract.",
+            "The 'Discussion' section should thoroughly interpret these results, explaining how they support the conclusions and addressing any limitations or alternative explanations."
+          ]
+        },
+        "citations": {
+          "score": 10.0,
+          "issues": [
+            "All 12 DOI(s) verified successfully."
+          ],
+          "suggestions": [
+            "No citation issues found."
+          ]
+        }
+      },
+      "final_score": 65.0,
+      "grade": "C \u2014 Needs Improvement",
+      "citation_result": {
+        "total_refs": 13,
+        "verified": 12,
+        "not_found": 0,
+        "unreachable": 0,
+        "flagged_dois": [],
+        "flagged_items": []
+      }
+    },
+    "error": null
+  },
+  {
+    "paper": "cs_survey_2606.01015",
+    "title": "AI-IoT-Robotics Integration: Survey of Frameworks, Emerging Trends, and the Path Toward Connected Robotics",
+    "category": "Computer Science \u2014 AI Survey/Review",
+    "analyze_status": 200,
+    "analyze_time_ms": 52094,
+    "report_status": 200,
+    "report_size_bytes": 10737,
+    "analyze_response": {
+      "filename": "cs_survey_2606.01015.pdf",
+      "detected_sections": {
+        "References": 98
+      },
+      "section_count": 1,
+      "warnings": [
+        "abstract",
+        "methodology",
+        "conclusion"
+      ],
+      "layer_scores": {
+        "structure_sections": 1.0,
+        "clarity_writing": 0.0,
+        "methodology_rigor": 0.0,
+        "evidence_claims": 0.0,
+        "citations": 9.4
+      },
+      "layer_details": {
+        "structure_sections": {
+          "score": 1,
+          "issues": [
+            "The provided excerpt consists solely of the 'REFERENCES' section, making it impossible to evaluate the presence and completeness of other standard academic sections (e.g., Abstract, Introduction, Methodology, Results, Conclusion).",
+            "Without other sections, the logical flow and transitions between different parts of the paper cannot be assessed, as only one section is available for review."
+          ],
+          "suggestions": [
+            "Ensure the full paper includes all standard academic sections, clearly labeled and in a logical order, to provide a complete research narrative.",
+            "Implement clear headings and subheadings throughout the paper to enhance readability and guide the reader through the paper's structure and arguments."
+          ]
+        },
+        "clarity_writing": {
+          "score": 0,
+          "issues": [
+            "The excerpt contains only a list of references, which does not provide any prose or textual content to evaluate grammar, sentence structure, vocabulary, or overall writing quality.",
+            "Minor inconsistencies in reference formatting (e.g., placement of DOIs, use of 'et al.' vs. full author lists for many authors, varying punctuation) suggest a lack of strict adherence to a single style guide."
+          ],
+          "suggestions": [
+            "Provide the full paper content to allow for a comprehensive evaluation of writing clarity, academic tone, and grammatical correctness.",
+            "Adopt and consistently apply a specific academic citation style (e.g., IEEE, APA) throughout the entire references section to ensure uniformity and professionalism."
+          ]
+        },
+        "methodology_rigor": {
+          "score": 0,
+          "issues": [
+            "The excerpt is limited to the references section and provides no information regarding the experimental design, research methods, or data collection procedures.",
+            "Details on datasets used, evaluation metrics, or any baseline comparisons are entirely absent, preventing an assessment of methodological rigor."
+          ],
+          "suggestions": [
+            "Include a dedicated 'Methodology' section that thoroughly describes the experimental setup, data sources, and the specific techniques or algorithms employed.",
+            "Clearly specify the evaluation metrics used, justify their selection, and present comparisons against relevant baselines or state-of-the-art methods to demonstrate rigor."
+          ]
+        },
+        "evidence_claims": {
+          "score": 0,
+          "issues": [
+            "The excerpt contains no claims, results, or discussion, making it impossible to evaluate whether claims are supported by evidence or if conclusions are logically drawn.",
+            "Without the core content of the paper, there is no basis to assess the consistency between abstract claims (if any) and findings, or the presence of unsupported generalizations."
+          ],
+          "suggestions": [
+            "Ensure that all claims made in the paper are explicitly backed by empirical evidence, data, or logical arguments presented in the results and discussion sections.",
+            "Clearly articulate how the conclusions are derived from the presented results, avoiding any overstatements or unsupported assertions that are not directly substantiated by the evidence."
+          ]
+        },
+        "citations": {
+          "score": 9.4,
+          "issues": [
+            "1 of 16 DOI(s) could not be verified (not found in CrossRef)."
+          ],
+          "suggestions": [
+            "Check flagged DOIs for typos or confirm they are published in indexed journals."
+          ]
+        }
+      },
+      "final_score": 11.4,
+      "grade": "F \u2014 Very Poor",
+      "citation_result": {
+        "total_refs": 122,
+        "verified": 15,
+        "not_found": 1,
+        "unreachable": 0,
+        "flagged_dois": [
+          "10.1109/SII59315"
+        ],
+        "flagged_items": [
+          {
+            "citation": "10.1109/SII59315",
+            "category": "not_found",
+            "detail": "No CrossRef match for DOI or title search."
+          }
+        ]
+      }
+    },
+    "error": null
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "fetched_at": "2026-06-05T18:22:07Z",
+  "total_papers": 5,
+  "papers": [
+    {
+      "name": "cs_ml_2606.06480",
+      "pdf_path": "cs_ml_2606.06480.pdf",
+      "meta_path": "cs_ml_2606.06480.meta.json",
+      "source": "arxiv_api",
+      "arxiv_id": "2606.06480",
+      "title": "DNQ: Deep Nash Q-Network for Partially Observable n-Player Games",
+      "category": "Computer Science \u2014 Machine Learning"
+    },
+    {
+      "name": "bio_medical_2606.02625",
+      "pdf_path": "bio_medical_2606.02625.pdf",
+      "meta_path": "bio_medical_2606.02625.meta.json",
+      "source": "arxiv_api",
+      "arxiv_id": "2606.02625",
+      "title": "DXA-Derived Skeletal Phenotypes and Hip Fracture Risk: A Backdoor-Adjusted Causal Analysis",
+      "category": "Quantitative Biology \u2014 Quantitative Methods"
+    },
+    {
+      "name": "physics_short_2605.29839",
+      "pdf_path": "physics_short_2605.29839.pdf",
+      "meta_path": "physics_short_2605.29839.meta.json",
+      "source": "arxiv_api",
+      "arxiv_id": "2605.29839",
+      "title": "The Topological Stability Index: A Variance-Based Measure for Persistence Barcodes",
+      "category": "Physics \u2014 Data Analysis"
+    },
+    {
+      "name": "econ_social_2606.00614",
+      "pdf_path": "econ_social_2606.00614.pdf",
+      "meta_path": "econ_social_2606.00614.meta.json",
+      "source": "arxiv_api",
+      "arxiv_id": "2606.00614",
+      "title": "Mitigation of spatial economic impact propagation of highway disruptions by redundant networks",
+      "category": "Economics \u2014 General"
+    },
+    {
+      "name": "cs_survey_2606.01015",
+      "pdf_path": "cs_survey_2606.01015.pdf",
+      "meta_path": "cs_survey_2606.01015.meta.json",
+      "source": "arxiv_api",
+      "arxiv_id": "2606.01015",
+      "title": "AI-IoT-Robotics Integration: Survey of Frameworks, Emerging Trends, and the Path Toward Connected Robotics",
+      "category": "Computer Science \u2014 AI Survey/Review"
+    }
+  ]
+}

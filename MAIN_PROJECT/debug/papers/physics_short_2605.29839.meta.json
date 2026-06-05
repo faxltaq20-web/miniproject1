@@ -1,0 +1,16 @@
+{
+  "source": "arxiv",
+  "arxiv_id": "2605.29839",
+  "category": "Physics \u2014 Data Analysis",
+  "title": "The Topological Stability Index: A Variance-Based Measure for Persistence Barcodes",
+  "expected_sections": [
+    "abstract",
+    "introduction",
+    "methodology",
+    "results",
+    "conclusion",
+    "references"
+  ],
+  "has_dois": true,
+  "expected_ref_count": null
+}

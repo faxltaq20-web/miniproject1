@@ -1,0 +1,16 @@
+{
+  "source": "arxiv",
+  "arxiv_id": "2606.00614",
+  "category": "Economics \u2014 General",
+  "title": "Mitigation of spatial economic impact propagation of highway disruptions by redundant networks",
+  "expected_sections": [
+    "abstract",
+    "introduction",
+    "methodology",
+    "results",
+    "conclusion",
+    "references"
+  ],
+  "has_dois": false,
+  "expected_ref_count": null
+}

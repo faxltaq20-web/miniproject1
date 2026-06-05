@@ -14,6 +14,14 @@ import time
 import sys
 from dotenv import load_dotenv
 
+# Fix Windows CP1252 encoding for Unicode output
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 load_dotenv()
 
 # ─── Multi-Key Setup ─────────────────────────────────────────────────────────
