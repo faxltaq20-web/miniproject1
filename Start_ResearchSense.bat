@@ -16,7 +16,7 @@ if exist "%~dp0venv\Scripts\activate.bat" (
 )
 
 :: Start the FastAPI backend server in a background window
-start "ResearchSense Backend" /min cmd /k "cd /d "%~dp0" && if exist venv\Scripts\activate.bat (call venv\Scripts\activate.bat) && python MAIN_PROJECT/main.py"
+start "ResearchSense Backend" /min cmd /k "cd /d "%~dp0MAIN_PROJECT" && python main.py"
 
 :: Give the server 2 seconds to initialize and bind the port
 timeout /t 3 /nobreak >nul
