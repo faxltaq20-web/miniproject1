@@ -2,7 +2,7 @@
    RESEARCHSENSE CLIENT ORCHESTRATION & API CONNECTIONS (JS)
    ------------------------------------------------------------- */
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://127.0.0.1:8000";
 
 // Global storage for current paper's analysis response
 let currentAnalysisData = null;

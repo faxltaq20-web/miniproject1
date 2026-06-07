@@ -22,7 +22,9 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-load_dotenv()
+from pathlib import Path
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # ─── Multi-Key Setup ─────────────────────────────────────────────────────────
 # Load up to 5 Gemini API keys from .env
