@@ -20,6 +20,13 @@ import scoring          # Phase 2
 import citation_checker # Phase 3
 import report_generator # Phase 4
 
+# Phase 10: Text Compression
+try:
+    from text_compressor import compress_sections as _compress_sections
+    _COMPRESSOR_AVAILABLE = True
+except ImportError:
+    _COMPRESSOR_AVAILABLE = False
+
 app = FastAPI(title="ResearchSense API", version="1.0.0")
 
 # Configure CORS middleware
@@ -223,6 +230,24 @@ async def generate_report(analysis: dict):
             "Content-Disposition": f'attachment; filename="{safe_name}_report.pdf"'
         }
     )
+
+
+@app.get("/compress-stats")
+async def compress_stats():
+    """
+    Diagnostic endpoint: returns the current COMPRESSION_MODE setting and
+    whether the text_compressor module is loaded. Does not run any analysis.
+    """
+    mode = os.getenv("COMPRESSION_MODE", "light").strip().lower()
+    return JSONResponse(content={
+        "compression_mode": mode,
+        "compressor_available": _COMPRESSOR_AVAILABLE,
+        "description": {
+            "off": "No compression — raw text sent to Gemini",
+            "light": "Whitespace + citations + boilerplate + dedup (~30-55% reduction)",
+            "aggressive": "light + formula/math line removal (~40-65% reduction)",
+        }.get(mode, "Unknown mode"),
+    })
 
 
 if __name__ == "__main__":

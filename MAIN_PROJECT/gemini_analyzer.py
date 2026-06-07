@@ -14,6 +14,17 @@ import time
 import sys
 from dotenv import load_dotenv
 
+# ─── Optional: Text Compression (Phase 10, Approach A) ───────────────────────
+# Graceful import: if text_compressor.py is absent or broken, pipeline continues
+# without compression and prints a one-time warning.
+try:
+    from text_compressor import compress_sections as _compress_sections
+    _COMPRESSOR_AVAILABLE = True
+except Exception as _tc_err:
+    _COMPRESSOR_AVAILABLE = False
+    print(f"   [Compress] WARNING: text_compressor unavailable ({_tc_err}) — running without compression.",
+          file=sys.stderr)
+
 # Fix Windows CP1252 encoding for Unicode output
 if sys.platform == "win32":
     try:
@@ -208,6 +219,26 @@ def analyze_paper(sections: dict) -> dict:
             }
         }
     """
+    # ─── Phase 10: Text Compression (Approach A) ─────────────────────────────
+    # Pre-compress sections before assembly to reduce prompt token count.
+    # Controlled by COMPRESSION_MODE env var: off | light (default) | aggressive
+    _compression_mode = os.getenv("COMPRESSION_MODE", "light").strip().lower()
+    if _COMPRESSOR_AVAILABLE and _compression_mode != "off":
+        try:
+            _compressed = _compress_sections(sections, mode=_compression_mode)
+            _stats = _compressed.pop("_compression_stats", {})
+            sections = _compressed
+            _orig  = _stats.get("total_original_chars", 0)
+            _comp  = _stats.get("total_compressed_chars", 0)
+            _pct   = _stats.get("reduction_pct", 0.0)
+            print(f"   [Compress] mode={_compression_mode} | "
+                  f"{_orig:,} → {_comp:,} chars | −{_pct}% reduction",
+                  flush=True)
+        except Exception as _ce:
+            print(f"   [Compress] WARNING: compression failed ({_ce}) — continuing uncompressed.",
+                  file=sys.stderr)
+    # ─────────────────────────────────────────────────────────────────────────
+
     def _smart_truncate(text: str, limit: int) -> str:
         """
         Cut text at the last sentence boundary (. ! ?) within `limit` chars.
