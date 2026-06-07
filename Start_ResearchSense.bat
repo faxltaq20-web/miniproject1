@@ -15,11 +15,13 @@ if exist "%~dp0venv\Scripts\activate.bat" (
     call "%~dp0venv\Scripts\activate.bat"
 )
 
-:: Start the FastAPI backend server in a background window
-start "ResearchSense Backend" /min cmd /k "cd /d "%~dp0MAIN_PROJECT" && python main.py"
+:: Start the FastAPI backend server in a MINIMIZED background window.
+:: Use /D to set working directory (avoids nested-quote bugs with spaces in path).
+start "ResearchSense Backend" /D "%~dp0MAIN_PROJECT" /min python main.py
 
-:: Give the server 2 seconds to initialize and bind the port
-timeout /t 3 /nobreak >nul
+:: Give the server 5 seconds to initialize, import modules, and bind the port
+echo     Waiting for server to initialize...
+timeout /t 5 /nobreak >nul
 
 echo [2/3] Opening Frontend Dashboard in your default browser...
 echo.
@@ -43,8 +45,9 @@ pause >nul
 
 echo.
 echo Stopping backend server...
-:: Taskkill the python window started by name
-taskkill /fi "windowtitle eq ResearchSense Backend" /f >nul 2>&1
+:: Kill the python process that was started
+taskkill /fi "windowtitle eq ResearchSense Backend*" /f >nul 2>&1
+taskkill /im python.exe /fi "windowtitle eq ResearchSense*" /f >nul 2>&1
 
 echo Done. Goodbye!
 timeout /t 2 >nul

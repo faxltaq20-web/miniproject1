@@ -38,39 +38,43 @@ async def root():
 @app.get("/health")
 async def health_check():
     """
-    Comprehensive health check — tests Gemini API keys, CrossRef, and Semantic Scholar.
-    Returns overall status as 'healthy' or 'degraded'.
+    Lightweight health check — verifies server is running, keys are loaded,
+    and external services are reachable. Does NOT burn Gemini API quota.
     """
-    # Check Gemini keys
-    gemini_health = check_api_health()
+    # Check Gemini keys are loaded (no API call — just check config)
+    gemini_keys_loaded = len(gemini_analyzer._clients)
+    any_key_configured = gemini_keys_loaded > 0
 
-    # Check CrossRef connectivity
+    gemini_status = {
+        "gemini_keys_loaded": gemini_keys_loaded,
+        "any_key_working": any_key_configured,
+        "model": gemini_analyzer._MODEL,
+    }
+
+    # Check CrossRef connectivity (quick HEAD, 2s timeout)
     try:
-        cr_resp = requests.head(
-            "https://api.crossref.org/works/10.1000/test",
-            timeout=3,
-        )
+        requests.head("https://api.crossref.org/works/10.1000/test", timeout=2)
         crossref_status = {"status": "ok"}
     except Exception:
         crossref_status = {"status": "unreachable"}
 
-    # Check Semantic Scholar connectivity
+    # Check Semantic Scholar connectivity (quick HEAD, 2s timeout)
     try:
-        ss_resp = requests.head(
+        requests.head(
             "https://api.semanticscholar.org/graph/v1/paper/search?query=test&limit=1",
-            timeout=3,
+            timeout=2,
         )
         semantic_scholar_status = {"status": "ok"}
     except Exception:
         semantic_scholar_status = {"status": "unreachable"}
 
-    # Overall status
-    is_healthy = gemini_health["any_key_working"] and crossref_status["status"] == "ok"
+    # Overall status — healthy if keys loaded and CrossRef reachable
+    is_healthy = any_key_configured and crossref_status["status"] == "ok"
     overall_status = "healthy" if is_healthy else "degraded"
 
     return JSONResponse(content={
         "status": overall_status,
-        "gemini": gemini_health,
+        "gemini": gemini_status,
         "crossref": crossref_status,
         "semantic_scholar": semantic_scholar_status,
     })
