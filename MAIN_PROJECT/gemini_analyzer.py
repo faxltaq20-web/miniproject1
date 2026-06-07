@@ -13,6 +13,19 @@ import re
 import time
 import sys
 from dotenv import load_dotenv
+from pathlib import Path
+
+# Fix Windows CP1252 encoding for Unicode output (before any print calls)
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+# Load .env first so COMPRESSION_MODE and GEMINI_KEY_* are available immediately
+_env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 # ─── Optional: Text Compression (Phase 10, Approach A) ───────────────────────
 # Graceful import: if text_compressor.py is absent or broken, pipeline continues
@@ -24,18 +37,6 @@ except Exception as _tc_err:
     _COMPRESSOR_AVAILABLE = False
     print(f"   [Compress] WARNING: text_compressor unavailable ({_tc_err}) — running without compression.",
           file=sys.stderr)
-
-# Fix Windows CP1252 encoding for Unicode output
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
-
-from pathlib import Path
-env_path = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=env_path)
 
 # ─── Multi-Key Setup ─────────────────────────────────────────────────────────
 # Load up to 5 Gemini API keys from .env
@@ -261,6 +262,9 @@ def analyze_paper(sections: dict) -> dict:
     # ── Smart per-section text assembly ───────────────────────────────
     # Gemini 2.5 Flash has 1M token context — send full section text.
     # Limits are large enough for any standard academic paper.
+    # NOTE: "references" is intentionally excluded here — it is handled
+    # separately by citation_checker.py using the raw, uncompressed text
+    # from the caller's sections dict (compression is a local rebind).
     SECTION_ORDER = [
         ("abstract",     "ABSTRACT",         5000),
         ("introduction", "INTRODUCTION",    30000),

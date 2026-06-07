@@ -293,6 +293,16 @@ class TestCompressSectionsAPI:
         assert result["_meta"] == {"version": 1}
         assert "_meta" not in result["_compression_stats"]["per_section"]
 
+    def test_references_section_not_compressed(self):
+        """References section must pass through unmodified — citation_checker needs raw text."""
+        refs = "1. Smith, J. et al. (2020). Paper title. Journal, 10(2), 1-10. DOI:10.1000/xyz"
+        sections = {"abstract": "This paper proposes a new method [1].", "references": refs}
+        result = compress_sections(sections, mode="light")
+        # References must be byte-identical to input
+        assert result["references"] == refs
+        # References must NOT appear in compression stats (not counted)
+        assert "references" not in result["_compression_stats"]["per_section"]
+
     def test_non_string_value_passthrough(self):
         """Non-string section values (e.g. None, int) must pass through unchanged."""
         sections = {"abstract": "Some text.", "count": 42}

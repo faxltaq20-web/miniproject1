@@ -2,12 +2,18 @@ import os
 import argparse
 import json
 import sys
+from pathlib import Path
+from dotenv import load_dotenv
 
 # Reconfigure stdout/stderr to UTF-8 to support emojis on Windows terminals
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
+
+# Load .env so COMPRESSION_MODE and other settings are available
+_env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 # Import pipeline modules
 import pdf_parser
@@ -79,16 +85,19 @@ def run_pipeline(pdf_path: str):
     for name, confidence in detected_sections.items():
         print(f"     ✓ {name} {confidence}%")
 
-    # ── Step 3: Multi-Layer AI Analysis ───────────────────────────────
-    print("⏳ [3/5] Running multi-layer AI analysis...")
+    # ── Step 3: Multi-Layer AI Analysis ───────────────────────────────────
+    _cmode = os.getenv("COMPRESSION_MODE", "light")
+    print(f"⏳ [3/5] Running multi-layer AI analysis... (compression={_cmode})")
     try:
         analysis = gemini_analyzer.analyze_paper(sections)
     except Exception as e:
         print(f"❌ AI analysis failed: {e}")
         return
 
-    # ── Step 4: Citation Check ────────────────────────────────────────
+    # ── Step 4: Citation Check ──────────────────────────────────────────
     print("⏳ [4/5] Validating citations with CrossRef...")
+    # NOTE: `sections` here is the ORIGINAL dict — analyze_paper() compresses
+    # a local copy only, so sections["references"] is always raw/uncompressed.
     citation_result = citation_checker.check_citations(
         sections.get("references", ""),
         full_text=text

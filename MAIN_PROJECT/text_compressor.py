@@ -38,7 +38,10 @@ if sys.platform == "win32":
 
 # ── Boilerplate phrase patterns ───────────────────────────────────────────────
 # Sentence-level patterns. Each matches a redundant academic filler clause.
-# The matched text (plus trailing non-sentence-ending chars) will be removed.
+# Only the MATCHED PHRASE + trailing comma is removed — the rest of the
+# sentence (which may contain result numbers or factual content) is kept.
+# This prevents stripping "our model outperforms by 3.2%" when the sentence
+# starts with "As shown in Table 1, our model outperforms by 3.2%".
 BOILERPLATE_PATTERNS = [
     # Paper structure forward-references
     r"[Ii]n this (paper|work|study|section|article),?\s+we\s+\w+",
@@ -140,15 +143,26 @@ def _remove_citations(text: str) -> str:
 def _remove_boilerplate_sentences(text: str) -> str:
     """
     Remove academic boilerplate filler clauses from text.
-    Each pattern targets a specific redundant phrase. The matched text plus
-    any trailing non-sentence-ending characters and optional comma/space is
-    removed — preserving the rest of the sentence where applicable.
+
+    Strategy: strip ONLY the matched phrase + optional trailing comma/space.
+    The remainder of the sentence is preserved, so result numbers and factual
+    content after the boilerplate opener are not lost.
+
+    Example:
+        Input:  "As shown in Table 1, our model outperforms by 3.2%."
+        Output: "our model outperforms by 3.2%."
+
+        Input:  "In this paper, we propose a novel approach."
+        Output: "a novel approach."   (filler phrase stripped, noun kept)
     """
     for pattern in BOILERPLATE_PATTERNS:
-        # Remove matched clause + trailing non-terminal content + optional comma
-        text = re.sub(pattern + r'[^.!?\n]*[,]?\s*', ' ', text)
-    # Clean up double spaces left by removal
+        # Strip matched phrase + optional trailing comma + any surrounding whitespace.
+        # Do NOT strip [^.!?\n]* — that would eat the rest of the sentence.
+        text = re.sub(pattern + r'[,]?\s*', ' ', text)
+    # Collapse any double-spaces introduced by phrase removal
     text = re.sub(r' {2,}', ' ', text)
+    # Strip leading/trailing spaces on each line (leftover from clause removal)
+    text = '\n'.join(line.strip() for line in text.split('\n'))
     return text
 
 
@@ -334,6 +348,12 @@ def compress_sections(sections: dict, mode: str = "light") -> dict:
     for key, text in sections.items():
         # Pass through metadata keys and non-string values unchanged
         if key.startswith("_") or not isinstance(text, str):
+            result[key] = text
+            continue
+
+        # Never compress the references section — citation_checker.py needs
+        # the raw reference strings (DOIs, author names, titles) intact.
+        if key == "references":
             result[key] = text
             continue
 

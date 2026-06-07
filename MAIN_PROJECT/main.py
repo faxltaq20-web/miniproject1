@@ -151,7 +151,9 @@ async def analyze_paper(file: UploadFile = File(...)):
                 detail={"error": "Analysis service unavailable", "message": str(e)}
             )
 
-        # Run citation extraction and CrossRef validation
+        # Run citation extraction and CrossRef validation.
+        # NOTE: `sections` here is the ORIGINAL dict — analyze_paper() compresses
+        # a local copy only, so sections["references"] is always raw/uncompressed.
         citation_result = citation_checker.check_citations(
             sections.get("references", ""),
             full_text=text
