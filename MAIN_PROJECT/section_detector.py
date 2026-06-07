@@ -27,6 +27,21 @@ SECTION_KEYWORDS = {
     "references":   ["references", "bibliography", "works cited"],
 }
 
+# Headings that STOP the current section (e.g. appendix starts after references).
+# When one of these is detected as a heading, we stop appending to any section.
+STOP_KEYWORDS = {
+    "appendix", "appendices",
+    "checklist",
+    "acknowledgement", "acknowledgements",
+    "acknowledgment", "acknowledgments",
+    "supplementary material", "supplemental material",
+    "supplementary", "supplemental",
+    "author contributions", "conflict of interest",
+    "funding", "data availability", "ethics statement",
+    "version control", "reproducibility statement",
+    "frequently asked questions",
+}
+
 
 def _clean_heading(line: str) -> str:
     """Strip markdown #, bold **, numbers, and whitespace to get pure heading text."""
@@ -80,6 +95,19 @@ def detect_sections(text: str) -> dict:
         # Only try to match headings, not body text
         if _is_heading_line(line):
             clean = _clean_heading(line)
+
+            # Check stop keywords first — these terminate all section accumulation
+            # (e.g. appendix headings, acknowledgements, checklist after references)
+            if any(stop in clean for stop in STOP_KEYWORDS):
+                current_section = None
+                continue
+
+            # Also stop on standalone appendix-letter headings like
+            # "## A Frequently Asked Questions" or "## A.1 ..."
+            # (single uppercase letter, possibly followed by digits/dots)
+            if re.match(r'^[a-z](\.[\d]+)*\s', clean):
+                current_section = None
+                continue
 
             matched_section = None
             for section_name, keywords in SECTION_KEYWORDS.items():

@@ -65,8 +65,9 @@ EMPTY_RESULT = {
 
 FALLBACK_RESULT = {
     "score": 0,
-    "issues": ["Analysis unavailable — LLM returned unparseable response."],
-    "suggestions": ["Retry the analysis."]
+    "issues": ["Analysis unavailable — Gemini API overloaded or all keys exhausted. Retry later."],
+    "suggestions": ["Retry the analysis when Gemini API demand is lower."],
+    "analysis_failed": True
 }
 
 
@@ -207,26 +208,45 @@ def analyze_paper(sections: dict) -> dict:
             }
         }
     """
-    # ── Smart per-section text assembly (OPT-06) ──────────────────────
-    # Present sections in standard academic order with clear labels
-    # so the LLM can properly evaluate document structure.
+    def _smart_truncate(text: str, limit: int) -> str:
+        """
+        Cut text at the last sentence boundary (. ! ?) within `limit` chars.
+        Falls back to last whitespace if no sentence end is found.
+        Appends '[...truncated]' so the LLM knows content was cut cleanly.
+        """
+        if len(text) <= limit:
+            return text
+        window = text[:limit]
+        match = None
+        for m in re.finditer(r'[.!?][\s\n]', window):
+            match = m
+        if match:
+            return window[:match.end()].rstrip() + "\n[...truncated]"
+        last_space = window.rfind(' ')
+        if last_space > limit // 2:
+            return window[:last_space].rstrip() + "\n[...truncated]"
+        return window + "\n[...truncated]"
+
+    # ── Smart per-section text assembly ───────────────────────────────
+    # Gemini 2.5 Flash has 1M token context — send full section text.
+    # Limits are large enough for any standard academic paper.
     SECTION_ORDER = [
-        ("abstract",     "ABSTRACT",        2000),
-        ("introduction", "INTRODUCTION",    2000),
-        ("related_work", "RELATED WORK",    1000),
-        ("methodology",  "METHODOLOGY",     2500),
-        ("results",      "RESULTS",         1500),
-        ("discussion",   "DISCUSSION",      1500),
-        ("conclusion",   "CONCLUSION",      1000),
+        ("abstract",     "ABSTRACT",         5000),
+        ("introduction", "INTRODUCTION",    30000),
+        ("related_work", "RELATED WORK",    15000),
+        ("methodology",  "METHODOLOGY",     40000),
+        ("results",      "RESULTS",         40000),
+        ("discussion",   "DISCUSSION",      30000),
+        ("conclusion",   "CONCLUSION",      10000),
     ]
-    MAX_TOTAL = 12000  # stay within model context window with room for prompt
+    MAX_TOTAL = 150000  # Full paper fits; Gemini 2.5 Flash handles it
 
     text_parts = []
     total_chars = 0
     for section_key, label, limit in SECTION_ORDER:
         content = sections.get(section_key, "").strip()
         if content:
-            chunk = content[:limit]
+            chunk = _smart_truncate(content, limit)
             text_parts.append(f"[{label}]\n{chunk}")
             total_chars += len(chunk) + len(label) + 3
 
