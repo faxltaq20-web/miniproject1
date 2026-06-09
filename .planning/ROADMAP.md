@@ -12,6 +12,7 @@
 | [Phase 7: Output Consistency and Overall Refinement](#phase-7-output-consistency-and-overall-refinement) | Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs |
 | [Phase 8: Web Frontend Dashboard](#phase-8-web-frontend-dashboard) | Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading |
 | [Phase 9: Automated End-to-End Debugging](#phase-9-automated-end-to-end-debugging) | Auto-fetch real academic papers, run the full pipeline with Gemini AI API, and validate nothing is missing |
+| [Phase 10: API Token Efficiency & Input Compression](#phase-10-api-token-efficiency--input-compression) | Reduce Gemini API token usage by ≥40% via structured text normalization and semantic compression without score drift |
 
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
@@ -219,4 +220,98 @@ Plans:
 - [ ] Plan 2: Full Pipeline Runner — `/analyze` + `/report` per Paper
 - [ ] Plan 3: Output Validator & Gap Analyzer — Schema + Completeness Checks
 - [ ] Plan 4: Summary Report Generator — Human-Readable Diagnostic Output
+
+---
+
+## Phase 10: API Token Efficiency & Input Compression
+**Goal:** Reduce the number of tokens sent to the Gemini API per paper analysis call — without losing the semantic content needed for accurate scoring — by applying a structured text normalization and compression pipeline on extracted paper sections before they are assembled into the LLM prompt.
+
+**Depends on:** Phase 9 (baseline pipeline must be fully validated so we have ground-truth output to compare against)
+
+---
+
+### 🧩 Formal Problem Definition
+
+**Problem Statement:**
+
+Given a set of extracted academic paper sections *S = {s₁, s₂, ..., sₙ}* (abstract, introduction, methodology, etc.) where total character count *|S| ≫ 20,000*, design a lossless-semantic compression function *f(S) → S'* such that:
+
+1. **|S'| ≪ |S|** — the compressed representation is significantly shorter in token count
+2. **sem(S') ≈ sem(S)** — the semantic content relevant for scoring is fully preserved
+3. **score(f(S)) ≈ score(S)** — Gemini's output scores and issues when given *S'* closely match those it produces for *S* (within ±0.5 per layer, measured on a validation set)
+
+This is formally known in NLP literature as **"prompt compression"** or **"context distillation for LLM inference"** — a subproblem of *information-preserving text reduction*.
+
+---
+
+### 📐 Why This Matters (Current Numbers)
+
+From `token_budget.py` analysis:
+- A real paper sends ~**150,000 chars** (the `MAX_TOTAL` cap in `gemini_analyzer.py`)
+- Even with smart per-section limits, we send ~**18,500 chars ≈ 4,625 tokens** of paper content
+- The Gemini free-tier bottleneck is **500 RPD** — NOT token count per call
+- BUT: larger prompts increase latency (~15–25 sec/paper), risk context overflow on smaller models, and cost more on paid tiers
+- Reducing input size by **40–60%** would cut per-call latency and allow future migration to cheaper, smaller models (e.g., `gemini-1.5-flash-8b`)
+
+---
+
+### 🔬 Candidate Approaches (Research-Ready)
+
+**Approach A — Structured Normalization (Recommended First)**
+> *Research keyword: "extractive prompt compression"*
+
+Transform each section into a normalized, shorter but semantically-equivalent representation:
+- Strip boilerplate phrases: "In this paper, we...", "It is worth noting that..."
+- Collapse whitespace, remove footnote markers, fix OCR noise
+- Deduplicate repeated sentences (common in methodology/results sections)
+- Keep only topic sentences of each paragraph (extractive summarization)
+- **Expected reduction: 30–50%** with zero LLM cost
+
+**Approach B — Semantic Chunking + Key Sentence Extraction**
+> *Research keyword: "extractive summarization for RAG / prompt engineering"*
+
+Use `sentence-transformers` or `spacy` to score each sentence by relevance to the evaluation criteria (structure, clarity, methodology, evidence) and keep only top-K sentences per section:
+- Each section → top 5–10 most "review-relevant" sentences
+- Assembles a compact, information-dense "review digest"
+- **Expected reduction: 60–75%** with high semantic fidelity
+
+**Approach C — LLM-Based Compression (Meta-Prompt)**
+> *Research keyword: "LLM prompt compression / selective context compression (LLMLingua)"*
+
+Send the full text to a cheap/fast LLM first, asking it to produce a "review digest" in structured format, then send THAT digest to the main scorer:
+- Two-stage pipeline: compress → score
+- Uses `LLMLingua` (Microsoft Research, open source) or a cheap Gemini Flash call for compression
+- **Expected reduction: 70–80%** but adds one extra API call (may not save quota)
+
+**Approach D — Template-Driven Section Summarization**
+> *Research keyword: "information extraction for structured summarization"*
+
+Instead of sending raw section text, extract structured key facts:
+- Abstract → `{objective, method, results, contribution}`
+- Methodology → `{dataset, model, baselines, metrics, training_details}`
+- Results → `{primary_metric, comparison_table, key_numbers}`
+- Format these as compact structured text blocks, not prose
+- **Expected reduction: 50–65%**, highly deterministic, no external dependencies
+
+---
+
+**Requirements Mapped:**
+- OPT-06: Optimize text truncation strategy for LLM context window usage (existing)
+- TOKEN-01: Design and implement a text normalization pre-processor that reduces prompt size by ≥40% with <5% semantic loss
+- TOKEN-02: Validate compressed output against uncompressed baseline on 5 real papers (score delta ≤0.5 per layer)
+- TOKEN-03: Make compression strategy configurable (off / light / aggressive) via `.env`
+
+**Success Criteria:**
+1. New `text_compressor.py` module with `compress_sections(sections: dict, mode: str) → dict` interface
+2. Compression reduces total assembled prompt by ≥40% (measured in chars) in default `light` mode
+3. Score drift vs. uncompressed baseline is ≤0.5 per layer on ≥4 of 5 validation papers
+4. Pipeline latency (time from upload to result) improves by ≥20% in `aggressive` mode
+5. Zero regressions on existing Phase 9 test suite (all passing papers still pass)
+
+**Plans:** 3 plans
+
+Plans:
+- [x] Plan 1: Text Normalization & Extractive Pre-Processor (`text_compressor.py`)
+- [x] Plan 2: Validation Harness — Score Drift & Token Reduction Metrics
+- [x] Plan 3: Pipeline Integration & Configurable Compression Modes
 

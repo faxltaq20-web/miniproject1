@@ -54,12 +54,13 @@ class TestExtractDois:
         assert "10.1234/test.paper.2020" in result
 
     def test_no_prefix_not_extracted(self):
-        # Arrange — bare 10.xxxx/... without DOI: or doi.org/ prefix
+        # Area 7: Standalone DOIs (without DOI: prefix) ARE now extracted.
+        # This test verifies the enhanced DOI extraction pattern.
         text = "version 10.3456/something-in-text-without-prefix"
         # Act
         result = citation_checker._extract_dois(text)
-        # Assert
-        assert result == [], f"Expected [], got {result}"
+        # Assert — standalone DOIs are now extracted
+        assert "10.3456/something-in-text-without-prefix" in result
 
     def test_trailing_period_stripped(self):
         # Arrange

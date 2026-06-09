@@ -1,27 +1,38 @@
 import re
 import difflib
+import time
 import requests
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Max DOIs to validate per paper — avoids excessive CrossRef calls on large reference lists
 MAX_DOIS = 20
 
-# Strict DOI pattern — only extract where an explicit label precedes the DOI
-DOI_PATTERN = re.compile(
+# Area 7: Enhanced DOI pattern — matches labeled AND standalone DOIs
+# Labeled: doi.org/10.1234/..., DOI: 10.1234/..., doi: 10.1234/...
+# Standalone: 10.1234/abc (common in bibliography entries without prefix)
+DOI_LABELED = re.compile(
     r'(?:doi\.org/|DOI:\s*|doi:\s*)(10\.\d{4,}/\S+)',
     re.IGNORECASE
 )
+DOI_STANDALONE = re.compile(
+    r'(?<!\w)(10\.\d{4,9}/[^\s,;)\]>\'\"\`\'\'\u2018\u2019\u201c\u201d]+)',
+    re.IGNORECASE
+)
 
-# Strip trailing punctuation that may be attached to a DOI in reference lists
-TRAILING_JUNK = re.compile(r'[.,;:)\]>]+$')
+# Area 7: Strip trailing punctuation, quotes, backticks, brackets, braces, dashes
+TRAILING_JUNK = re.compile(r'[.,;:)\]>\'\"\`\\\-\'\'\u2018\u2019\u201c\u201d]+$')
 
 # Pattern to extract author-year citations like "Smith & Lee, 2019" or "(Author, 2020)"
 AUTHOR_YEAR_PATTERN = re.compile(
     r'([A-Z][a-z]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-z]+))?),?\s*\(?\s*(\d{4})\s*\)?'
 )
 
+# Area 7: Year extraction pattern
+YEAR_PATTERN = re.compile(r'\b(19\d{2}|20\d{2})\b')
+
 CROSSREF_BASE = "https://api.crossref.org/works/{doi}"
+CROSSREF_SEARCH = "https://api.crossref.org/works"
 HEADERS = {
     # Polite pool header — gives CrossRef rate-limit headroom (50 req/sec)
     "User-Agent": "ResearchSense/1.0 (mailto:team@researchsense.dev)"
@@ -31,10 +42,16 @@ TIMEOUT = 5  # seconds per request
 
 def _extract_dois(references_text: str) -> list:
     """
-    Extract DOIs from references text using strict prefix matching only.
+    Area 7: Extract DOIs from references text using both labeled and standalone patterns.
     Returns a deduplicated list of up to MAX_DOIS DOI strings.
     """
-    raw_matches = DOI_PATTERN.findall(references_text)
+    # Try labeled DOIs first (higher confidence)
+    raw_matches = DOI_LABELED.findall(references_text)
+    
+    # If no labeled DOIs, try standalone pattern
+    if not raw_matches:
+        raw_matches = DOI_STANDALONE.findall(references_text)
+    
     cleaned = []
     seen = set()
     for doi in raw_matches:
@@ -45,6 +62,12 @@ def _extract_dois(references_text: str) -> list:
         if len(cleaned) >= MAX_DOIS:
             break
     return cleaned
+
+
+def _extract_year_from_ref(ref_line: str) -> str:
+    """Area 7: Extract publication year from a reference line."""
+    match = YEAR_PATTERN.search(ref_line)
+    return match.group(1) if match else ""
 
 
 def _extract_author_year_refs(text: str) -> list:
@@ -132,12 +155,55 @@ def _extract_title_from_ref(ref_line: str) -> str:
     return ""
 
 
-def _verify_title_semantic_scholar(title: str) -> bool:
+def _search_crossref_works(query: str) -> dict:
     """
-    Query Semantic Scholar API to verify whether a paper title exists.
+    Area 7: Search CrossRef Works API for a reference by bibliographic query.
+    Returns {"matched": bool, "title": str, "year": str} or None on failure.
+    """
+    try:
+        response = requests.get(
+            CROSSREF_SEARCH,
+            params={"query.bibliographic": query, "limit": 3},
+            headers=HEADERS,
+            timeout=TIMEOUT,
+        )
+        if response.status_code == 200:
+            items = response.json().get("message", {}).get("items", [])
+            if items:
+                return {
+                    "matched": True,
+                    "title": items[0].get("title", [""])[0],
+                    "year": str(items[0].get("published-print", {}).get("date-parts", [[None]])[0][0] or ""),
+                }
+        elif response.status_code in (429, 503):
+            time.sleep(1.0)
+            # Retry once
+            response = requests.get(
+                CROSSREF_SEARCH,
+                params={"query.bibliographic": query, "limit": 3},
+                headers=HEADERS,
+                timeout=TIMEOUT,
+            )
+            if response.status_code == 200:
+                items = response.json().get("message", {}).get("items", [])
+                if items:
+                    return {
+                        "matched": True,
+                        "title": items[0].get("title", [""])[0],
+                        "year": str(items[0].get("published-print", {}).get("date-parts", [[None]])[0][0] or ""),
+                    }
+    except requests.RequestException:
+        pass
+    return {"matched": False, "title": "", "year": ""}
 
-    Uses difflib.SequenceMatcher to compare the queried title with the
-    returned title. Considers it verified if similarity ratio >= 0.6.
+
+def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> bool:
+    """
+    Area 7: Query Semantic Scholar API to verify whether a paper title exists.
+
+    Uses year-aware matching with top 3 results:
+    - If returned paper's year matches ref_year (±1), accept with ratio >= 0.5
+    - Otherwise, require ratio >= 0.6
 
     Returns True if a sufficiently similar match is found, False otherwise.
     """
@@ -147,48 +213,75 @@ def _verify_title_semantic_scholar(title: str) -> bool:
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
         "query": title,
-        "limit": 1,
-        "fields": "title"
+        "limit": 3,
+        "fields": "title,year"
     }
     try:
         response = requests.get(url, params=params, timeout=3)
+        if response.status_code == 429:
+            # Rate limited — wait and retry once
+            time.sleep(1.0)
+            response = requests.get(url, params=params, timeout=3)
         if response.status_code != 200:
             return False
         data = response.json()
         papers = data.get("data", [])
         if not papers:
             return False
-        returned_title = papers[0].get("title", "")
-        ratio = difflib.SequenceMatcher(
-            None, title.lower(), returned_title.lower()
-        ).ratio()
-        return ratio >= 0.6
+
+        # Year-aware matching: check top 3 results
+        ref_year_int = int(ref_year) if ref_year and ref_year.isdigit() else None
+        for paper in papers[:3]:
+            returned_title = paper.get("title", "")
+            paper_year = paper.get("year")
+            ratio = difflib.SequenceMatcher(
+                None, title.lower(), returned_title.lower()
+            ).ratio()
+
+            # Year-aware threshold: if years match (±1), relax similarity threshold
+            if ref_year_int and paper_year:
+                if abs(ref_year_int - paper_year) <= 1 and ratio >= 0.5:
+                    return True
+            if ratio >= 0.6:
+                return True
+
+        return False
     except (requests.RequestException, ValueError, KeyError):
         return False
 
 
 def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
     """
-    Verify reference titles against Semantic Scholar in parallel.
+    Area 7: Verify reference titles against Semantic Scholar in parallel.
 
-    Extracts titles from up to `max_refs` reference lines and checks them
+    Extracts titles and years from up to `max_refs` reference lines and checks them
     concurrently using a ThreadPoolExecutor with 5 workers.
 
     Returns:
         {"verified": int, "not_found": int, "checked": int}
     """
-    # Extract titles from reference lines
-    titles = []
+    # Extract titles and years from reference lines
+    checks = []
     for line in ref_lines[:max_refs]:
         title = _extract_title_from_ref(line)
+        year = _extract_year_from_ref(line)
         if title:
-            titles.append(title)
+            checks.append((title, year))
 
-    if not titles:
+    if not checks:
         return {"verified": 0, "not_found": 0, "checked": 0}
 
     with ThreadPoolExecutor(max_workers=5) as executor:
-        results = list(executor.map(_verify_title_semantic_scholar, titles))
+        futures = {
+            executor.submit(_verify_title_semantic_scholar, title, year): title
+            for title, year in checks
+        }
+        results = []
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception:
+                results.append(False)
 
     verified = sum(1 for r in results if r)
     not_found = sum(1 for r in results if not r)
@@ -196,13 +289,14 @@ def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
     return {
         "verified": verified,
         "not_found": not_found,
-        "checked": len(titles)
+        "checked": len(checks)
     }
 
 
 def _validate_doi(doi: str) -> str:
     """
     Validate a single DOI against CrossRef REST API.
+    Retries once on 429/503 errors.
 
     Returns:
         "verified"    — HTTP 200 (DOI exists in CrossRef)
@@ -210,22 +304,31 @@ def _validate_doi(doi: str) -> str:
         "unreachable" — timeout, connection error, or unexpected HTTP status
     """
     url = CROSSREF_BASE.format(doi=doi)
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        if response.status_code == 200:
-            return "verified"
-        elif response.status_code == 404:
-            return "not_found"
-        else:
+    for attempt in range(2):
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            if response.status_code == 200:
+                return "verified"
+            elif response.status_code == 404:
+                return "not_found"
+            elif response.status_code in (429, 503) and attempt == 0:
+                time.sleep(1.0)
+                continue
+            else:
+                return "unreachable"
+        except requests.RequestException:
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
             return "unreachable"
-    except requests.RequestException:
-        return "unreachable"
+    return "unreachable"
 
 
 def check_citations(references_text: str, full_text: str = "") -> dict:
     """
-    Extract DOIs from the references section, validate each against CrossRef,
-    detect duplicates, and build structured flagged items.
+    Area 7: Extract DOIs from the references section, validate each against CrossRef,
+    with two-tier fallback (DOI → Title → CrossRef Works Search).
+    Detect duplicates and build structured flagged items.
 
     Args:
         references_text: raw text of the paper's references section.
@@ -323,8 +426,16 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             ],
         }
 
-    # Validate each DOI
-    results = {doi: _validate_doi(doi) for doi in dois}
+    # Validate each DOI in parallel (5 concurrent workers)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_doi = {executor.submit(_validate_doi, doi): doi for doi in dois}
+        results = {}
+        for future in as_completed(future_to_doi):
+            doi = future_to_doi[future]
+            try:
+                results[doi] = future.result()
+            except Exception:
+                results[doi] = "unreachable"
 
     verified_count    = sum(1 for s in results.values() if s == "verified")
     not_found_count   = sum(1 for s in results.values() if s == "not_found")
@@ -332,7 +443,51 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
 
     flagged_dois = [doi for doi, status in results.items() if status == "not_found"]
 
-    # Build flagged_items for not_found DOIs
+    # Area 7: Two-tier fallback for not-found DOIs (parallelized)
+    # Try title-based Semantic Scholar, then CrossRef Works Search
+    def _fallback_verify_doi(doi: str) -> tuple:
+        """Try both fallback tiers for a single DOI. Returns (doi, verified)."""
+        # Find the reference line containing this DOI
+        matching_line = ""
+        for line in ref_lines:
+            if doi in line:
+                matching_line = line
+                break
+
+        if not matching_line:
+            return (doi, False)
+
+        # Extract title and year for fallback search
+        title = _extract_title_from_ref(matching_line)
+        year = _extract_year_from_ref(matching_line)
+
+        # Tier 1: Try Semantic Scholar title search
+        if title and _verify_title_semantic_scholar(title, year):
+            return (doi, True)
+
+        # Tier 2: Try CrossRef Works Search API
+        crossref_result = _search_crossref_works(matching_line)
+        if crossref_result and crossref_result.get("matched"):
+            return (doi, True)
+
+        return (doi, False)
+
+    # Run fallback verification in parallel
+    if flagged_dois:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(_fallback_verify_doi, doi): doi for doi in flagged_dois}
+            for future in as_completed(futures):
+                try:
+                    doi, verified = future.result()
+                    if verified:
+                        results[doi] = "verified"
+                        flagged_dois.remove(doi)
+                        verified_count += 1
+                        not_found_count -= 1
+                except Exception:
+                    pass  # Keep as not_found
+
+    # Build flagged_items for remaining not_found DOIs
     for doi in flagged_dois:
         # Try to find the reference line containing this DOI
         matching_line = ""

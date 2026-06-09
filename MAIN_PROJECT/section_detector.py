@@ -19,7 +19,9 @@ SECTION_KEYWORDS = {
     "related_work": ["related work", "literature review", "background", "prior work"],
     "methodology":  ["methodology", "methods", "method", "approach",
                      "experimental setup", "model architecture",
-                     "proposed method", "proposed approach", "proposed system"],
+                     "proposed method", "proposed approach", "proposed system",
+                     "materials and methods", "study design", "experimental design",
+                     "data collection", "data sources"],
     "results":      ["results", "result", "findings", "experiments",
                      "experiment", "evaluation"],
     "discussion":   ["discussion", "analysis"],
@@ -44,26 +46,45 @@ STOP_KEYWORDS = {
 
 
 def _clean_heading(line: str) -> str:
-    """Strip markdown #, bold **, numbers, and whitespace to get pure heading text."""
+    """Strip markdown #, bold **, numbers, roman numerals, and whitespace to get pure heading text."""
     s = line.strip()
     # Remove markdown heading prefix: ## or ###
     s = re.sub(r'^#{1,4}\s*', '', s)
     # Remove bold markers: **text**
     s = s.replace('**', '')
-    # Remove leading section numbers: "1", "3.1", "5.2.1" etc.
-    s = re.sub(r'^\d+(\.\d+)*\.?\s*', '', s)
+    # Remove leading section numbers: "1", "3.1", "5.2.1", "2.Materials" etc.
+    s = re.sub(r'^\d+\.?\d*\.?\s*', '', s)
+    # Remove leading roman numerals: "I.", "II", "III." etc.
+    s = re.sub(r'^[IVX]+\.?\s+', '', s)
+    # Remove trailing em-dash, colon, or period (common in some styles: "Abstract—")
+    s = re.sub(r'[—–:\-\.]+$', '', s)
     return s.strip().lower()
 
 
 def _is_heading_line(line: str) -> bool:
-    """Check if a line is a heading (markdown or short plain text)."""
+    """
+    Check if a line is a heading (markdown or plain text).
+
+    Detection strategy:
+    1. Markdown headings (#, ##, ###) — always headings
+    2. Short standalone lines (< 80 chars, no sentence-ending punctuation)
+    3. ALL CAPS lines (common in academic papers: "INTRODUCTION", "ABSTRACT")
+    4. Numbered headings: "1. Introduction", "2.1 Methods"
+    """
     stripped = line.strip()
     if not stripped:
         return False
+    # Markdown headings — always headings
     if stripped.startswith("#"):
         return True
+    # ALL CAPS lines (at least 3 chars, likely section heading)
+    if len(stripped) >= 3 and stripped.isupper() and not any(c.isdigit() for c in stripped):
+        return True
+    # Numbered headings: "1. Introduction", "2.1 Methods", "III. Results"
+    if re.match(r'^[IVX\d]+\.?\d*\.?\s+[A-Z]', stripped):
+        return True
     # Short line without ending period — likely plain text heading
-    if len(stripped) < 60 and not stripped.endswith(".") and not stripped.startswith("|"):
+    if len(stripped) < 80 and not stripped.endswith(".") and not stripped.startswith("|"):
         return True
     return False
 
@@ -111,7 +132,7 @@ def detect_sections(text: str) -> dict:
 
             matched_section = None
             for section_name, keywords in SECTION_KEYWORDS.items():
-                if clean in keywords:
+                if any(kw in clean for kw in keywords):
                     matched_section = section_name
                     break
 
@@ -129,6 +150,37 @@ def detect_sections(text: str) -> dict:
     # Strip trailing whitespace
     for k in sections:
         sections[k] = sections[k].strip()
+
+    # Fallback: if few sections detected, scan for any known heading keyword
+    # anywhere in the text. This catches papers where PyMuPDF merges headings
+    # with body text or uses unusual formatting.
+    detected_count = sum(1 for v in sections.values() if v.strip())
+    if detected_count <= 5:
+        for section_name, keywords in SECTION_KEYWORDS.items():
+            if sections[section_name].strip():
+                continue  # already detected
+            # Search for keyword as a standalone word (case-insensitive)
+            for kw in keywords:
+                pattern = re.compile(
+                    rf'(?:^|\n)\s*(?:\d+\.?\s*)?{re.escape(kw)}\s*[\n\-\—\:\.]',
+                    re.IGNORECASE
+                )
+                match = pattern.search(text)
+                if match:
+                    # Extract ~2000 chars after the heading as section content
+                    start = match.end()
+                    end = min(start + 2000, len(text))
+                    # Stop at next known heading or end of text
+                    for other_kw_list in SECTION_KEYWORDS.values():
+                        for other_kw in other_kw_list:
+                            next_match = re.compile(
+                                rf'(?:^|\n)\s*(?:\d+\.?\s*)?{re.escape(other_kw)}\s*[\n\-\—\:\.]',
+                                re.IGNORECASE
+                            ).search(text, start)
+                            if next_match and next_match.start() < end:
+                                end = next_match.start()
+                    sections[section_name] = text[match.start():end].strip()
+                    break
 
     # Calculate confidence scores
     detected_sections = {}

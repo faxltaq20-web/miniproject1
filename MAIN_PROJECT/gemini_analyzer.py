@@ -7,6 +7,7 @@ automatically rotates to the next key. This gives 5× the free-tier quota.
 
 from google import genai
 from google.genai import types
+import hashlib
 import json
 import os
 import re
@@ -82,6 +83,114 @@ FALLBACK_RESULT = {
     "analysis_failed": True
 }
 
+# ─── Area 2: Structured Output Schema ────────────────────────────────────────
+# Gemini's native JSON mode guarantees valid JSON output matching this schema.
+# Eliminates all regex-based JSON parsing and the "strict prompt" retry path.
+LAYER_SCHEMA_TEMPLATE = {
+    "type": "OBJECT",
+    "properties": {
+        "score": {"type": "INTEGER"},
+        "issues": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "suggestions": {"type": "ARRAY", "items": {"type": "STRING"}},
+    },
+    "required": ["score", "issues", "suggestions"],
+}
+
+RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "structure_sections": LAYER_SCHEMA_TEMPLATE,
+        "clarity_writing": LAYER_SCHEMA_TEMPLATE,
+        "methodology_rigor": LAYER_SCHEMA_TEMPLATE,
+        "evidence_claims": LAYER_SCHEMA_TEMPLATE,
+    },
+    "required": ["structure_sections", "clarity_writing",
+                  "methodology_rigor", "evidence_claims"],
+}
+
+# ─── Area 3: System Instruction (static prompt cached by Gemini) ─────────────
+SYSTEM_PROMPT = """You are an experienced academic paper reviewer. Evaluate research papers across 4 dimensions.
+For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 2), and a list of actionable suggestions (minimum 2).
+
+SCORING RUBRIC — use this to assign consistent scores:
+  9-10: Exceptional — publishable quality, no significant issues found in the content
+  7-8:  Good — minor issues that don't undermine the work's contribution
+  5-6:  Adequate — noticeable weaknesses but the core contribution is sound
+  3-4:  Weak — significant gaps that undermine the paper's credibility
+  1-2:  Poor — fundamental structural or methodological problems
+  0:    Section missing or completely inadequate
+
+DIMENSION 1 — Structure & Sections:
+- Are standard academic sections present? (Abstract, Introduction, Related Work, Methodology, Results, Conclusion, References)
+- Is there logical flow and transitions between sections?
+- Is section ordering and balance reasonable?
+
+DIMENSION 2 — Clarity & Writing:
+- Grammar correctness and language quality
+- Sentence structure and readability
+- Vocabulary appropriateness for academic writing
+- Coherence and flow within paragraphs
+
+DIMENSION 3 — Methodology Rigor:
+- Is the experimental design described clearly?
+- Are datasets and evaluation metrics specified?
+- Are there baseline comparisons?
+- Is there sufficient detail for understanding the approach?
+
+DIMENSION 4 — Evidence & Claims:
+- Are claims supported by evidence and data in the text?
+- Do conclusions logically follow from the results presented?
+- Are there unsupported or overgeneralized claims?
+- Is there consistency between abstract claims and findings?
+
+IMPORTANT: The paper content may be an excerpt — sections may be truncated for length. Evaluate based on what IS present, not what may be cut off. Do NOT penalize truncation artifacts.
+
+Return a JSON object with exactly this structure:
+{
+  "structure_sections": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
+  "clarity_writing": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
+  "methodology_rigor": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
+  "evidence_claims": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}
+}"""
+
+
+# ─── Area 5: Result Caching ───────────────────────────────────────────────────
+# Hash-based cache for Gemini analysis results. Same paper text = instant return.
+CACHE_ENABLED = os.getenv("CACHE_ENABLED", "true").strip().lower() == "true"
+CACHE_DIR = Path(__file__).resolve().parent / "cache"
+
+
+def _get_cache_key(assembled_text: str) -> str:
+    """Generate a short hash key from the assembled paper text."""
+    return hashlib.sha256(assembled_text.encode("utf-8")).hexdigest()[:16]
+
+
+def _load_cache(key: str) -> dict | None:
+    """Load cached analysis result if it exists."""
+    if not CACHE_ENABLED:
+        return None
+    path = CACHE_DIR / f"{key}.json"
+    if path.exists():
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+    return None
+
+
+def _save_cache(key: str, result: dict):
+    """Save analysis result to cache."""
+    if not CACHE_ENABLED:
+        return
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR / f"{key}.json"
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+    except OSError as e:
+        print(f"   [Cache] Warning: could not write cache: {e}", file=sys.stderr)
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,21 +217,37 @@ def _parse_retry_delay(err_str: str) -> float:
 # ─── Core LLM Call (key rotation) ────────────────────────────────────────────
 
 def _call_single_key(key_name: str, client, prompt: str,
-                     max_retries: int = 3, initial_delay: float = 5.0) -> str:
+                     max_retries: int = 3, initial_delay: float = 5.0,
+                     use_structured_output: bool = False,
+                     system_instruction: str = None) -> str:
     """
     Call Gemini with one specific key. Retries on transient errors.
     Returns raw text on success. Raises on persistent failure.
+
+    When use_structured_output=True, uses Gemini's native JSON mode
+    with response_schema to guarantee valid JSON output (Area 2).
+    When system_instruction is provided, uses Gemini's system_instruction
+    parameter for cached static prompts (Area 3).
     """
     delay = initial_delay
     for attempt in range(max_retries):
         try:
+            # Area 2 + 3 + 6: Structured output, system instruction, config tuning
+            config_kwargs = {
+                "temperature": 0.0,
+                "top_p": 0.8,              # Area 6: tighter distribution
+                "max_output_tokens": 2048,  # Area 6: typical response is 800-1200 tokens
+            }
+            if use_structured_output:
+                config_kwargs["response_mime_type"] = "application/json"
+                config_kwargs["response_schema"] = RESPONSE_SCHEMA
+            if system_instruction:
+                config_kwargs["system_instruction"] = system_instruction
+
             response = client.models.generate_content(
                 model=_MODEL,
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.0,
-                    top_p=0.95,
-                ),
+                config=types.GenerateContentConfig(**config_kwargs),
             )
             return response.text.strip()
         except Exception as e:
@@ -147,7 +272,8 @@ def _call_single_key(key_name: str, client, prompt: str,
                 raise
 
 
-def _call_llm_with_failover(prompt: str) -> str:
+def _call_llm_with_failover(prompt: str, use_structured_output: bool = False,
+                            system_instruction: str = None) -> str:
     """
     Try each Gemini key in order. If one key hits 429, rotate to next.
     Returns raw text on first success.
@@ -155,7 +281,9 @@ def _call_llm_with_failover(prompt: str) -> str:
     last_error = None
     for key_name, client in _clients:
         try:
-            return _call_single_key(key_name, client, prompt)
+            return _call_single_key(key_name, client, prompt,
+                                    use_structured_output=use_structured_output,
+                                    system_instruction=system_instruction)
         except Exception as e:
             last_error = e
             err_str = str(e)
@@ -169,26 +297,23 @@ def _call_llm_with_failover(prompt: str) -> str:
 
 def _call_gemini(prompt: str) -> dict:
     """
-    Call Gemini with key rotation. Parse JSON response.
-    On invalid JSON, retry with strict prompt.
+    Call Gemini with key rotation and structured JSON output (Area 2).
+    Uses SYSTEM_PROMPT as system_instruction (Area 3) and response_schema
+    to guarantee valid JSON — no regex parsing needed.
     On persistent failure, return FALLBACK_RESULT.
     """
     try:
-        raw_text = _call_llm_with_failover(prompt)
-        cleaned_text = clean_json_text(raw_text)
-        return json.loads(cleaned_text)
-    except json.JSONDecodeError:
-        # Retry with strict prompt
-        strict_prompt = (
-            prompt
-            + "\n\nReturn ONLY valid JSON. No markdown code blocks. No explanatory text."
+        raw_text = _call_llm_with_failover(
+            prompt,
+            use_structured_output=True,
+            system_instruction=SYSTEM_PROMPT,
         )
-        try:
-            raw_text = _call_llm_with_failover(strict_prompt)
-            cleaned_text = clean_json_text(raw_text)
-            return json.loads(cleaned_text)
-        except (json.JSONDecodeError, Exception):
-            return FALLBACK_RESULT
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        # Structured output should prevent this, but fallback just in case
+        print("   [Warning] JSON decode failed despite structured output — "
+              "returning fallback.", file=sys.stderr)
+        return FALLBACK_RESULT
     except Exception as e:
         print(f"   [Error] All Gemini keys failed: {e}", file=sys.stderr)
         return FALLBACK_RESULT
@@ -303,71 +428,20 @@ def analyze_paper(sections: dict) -> dict:
             }
         }
 
-    # ── Prompt with scoring rubric (OPT-01) ───────────────────────────
-    prompt = f"""You are an experienced academic paper reviewer. Evaluate the following research paper across 4 dimensions.
-For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 2), and a list of actionable suggestions (minimum 2).
+    # ── Area 3: System Instruction + Paper Content (separated) ────────────
+    # System prompt is cached by Gemini across calls (warmer model).
+    # User message contains only the paper text — shorter, faster.
+    user_message = f"Paper content (excerpted):\n{assembled_text}"
 
-IMPORTANT: The paper content below is an excerpt — sections may be truncated for length. Evaluate based on what IS present, not what may be cut off. Do NOT penalize truncation artifacts.
-
-SCORING RUBRIC — use this to assign consistent scores:
-  9-10: Exceptional — publishable quality, no significant issues found in the content
-  7-8:  Good — minor issues that don't undermine the work's contribution
-  5-6:  Adequate — noticeable weaknesses but the core contribution is sound
-  3-4:  Weak — significant gaps that undermine the paper's credibility
-  1-2:  Poor — fundamental structural or methodological problems
-  0:    Section missing or completely inadequate
-
-DIMENSION 1 — Structure & Sections:
-- Are standard academic sections present? (Abstract, Introduction, Related Work, Methodology, Results, Conclusion, References)
-- Is there logical flow and transitions between sections?
-- Is section ordering and balance reasonable?
-
-DIMENSION 2 — Clarity & Writing:
-- Grammar correctness and language quality
-- Sentence structure and readability
-- Vocabulary appropriateness for academic writing
-- Coherence and flow within paragraphs
-
-DIMENSION 3 — Methodology Rigor:
-- Is the experimental design described clearly?
-- Are datasets and evaluation metrics specified?
-- Are there baseline comparisons?
-- Is there sufficient detail for understanding the approach?
-
-DIMENSION 4 — Evidence & Claims:
-- Are claims supported by evidence and data in the text?
-- Do conclusions logically follow from the results presented?
-- Are there unsupported or overgeneralized claims?
-- Is there consistency between abstract claims and findings?
-
-Return ONLY a JSON object with exactly this structure (no markdown, no extra text):
-{{
-  "structure_sections": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
-  "clarity_writing": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
-  "methodology_rigor": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}},
-  "evidence_claims": {{"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}}
-}}
-
-FEW-SHOT EXAMPLE — calibration reference for scoring:
-
-Example paper excerpt:
-"This study investigates sentiment analysis using machine learning. We collected 500 tweets and applied Naive Bayes. Results show 72% accuracy. We conclude our method is effective for sentiment analysis."
-
-Example output:
-{{
-  "structure_sections": {{"score": 5, "issues": ["No Related Work or Discussion section present", "Abstract is missing; paper jumps directly into introduction"], "suggestions": ["Add a Related Work section comparing to existing sentiment analysis approaches", "Include a proper abstract summarizing objectives, methods, and findings"]}},
-  "clarity_writing": {{"score": 6, "issues": ["Sentences are overly simplistic and lack academic depth", "No transition phrases between sections"], "suggestions": ["Expand sentence complexity and use domain-specific terminology", "Add transition sentences to improve logical flow between paragraphs"]}},
-  "methodology_rigor": {{"score": 5, "issues": ["Dataset of 500 tweets is too small without justification", "No baseline comparisons or cross-validation mentioned"], "suggestions": ["Justify dataset size or expand it; report collection methodology", "Compare against at least two baseline methods and use k-fold cross-validation"]}},
-  "evidence_claims": {{"score": 5, "issues": ["Claiming method is 'effective' based solely on 72% accuracy without context", "No statistical significance testing reported"], "suggestions": ["Contextualize accuracy against baselines and state-of-the-art results", "Include confidence intervals or significance tests for reported metrics"]}}
-}}
-
-END OF EXAMPLE — now evaluate the actual paper below.
-
-Paper content (excerpted):
-{assembled_text}"""
+    # ── Area 5: Cache check ─────────────────────────────────────────────
+    _cache_key = _get_cache_key(assembled_text)
+    _cached = _load_cache(_cache_key)
+    if _cached is not None:
+        print("   ↳ Cache HIT — returning cached analysis (0 API calls)", flush=True)
+        return _cached
 
     print("   ↳ Running multi-layer analysis (single pass)...", flush=True)
-    raw = _call_gemini(prompt)
+    raw = _call_gemini(user_message)
 
     layer_keys = ["structure_sections", "clarity_writing", "methodology_rigor", "evidence_claims"]
 
@@ -393,10 +467,15 @@ Paper content (excerpted):
     }
     layer_scores["citations"] = 0.0
 
-    return {
+    result = {
         "layer_details": layer_details,
         "layer_scores": layer_scores,
     }
+
+    # ── Area 5: Save to cache ───────────────────────────────────────────
+    _save_cache(_cache_key, result)
+
+    return result
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────
@@ -434,3 +513,65 @@ def check_api_health() -> dict:
         "any_key_working": any_key_working,
         "model": _MODEL,
     }
+
+
+# ─── Verdict Generation (moved from report_generator.py) ─────────────────────
+# Parallelized: runs alongside citation checking in /analyze endpoint.
+
+PARAM_LABELS = {
+    "structure_sections": "Structure & Sections",
+    "clarity_writing":    "Clarity & Writing",
+    "methodology_rigor":  "Methodology Rigor",
+    "evidence_claims":    "Evidence & Claims",
+    "citations":          "Citations & References",
+}
+
+
+def generate_verdict(final_score: float, grade: str, layer_scores: dict,
+                     layer_details: dict) -> str:
+    """
+    Generate a 2-3 sentence verdict paragraph using the LLM.
+    Falls back to a template if all providers are unavailable.
+    """
+    sorted_layers = sorted(layer_scores.items(), key=lambda x: x[1])
+    worst_two = sorted_layers[:2]
+    top_issues = []
+    for layer_key, _ in worst_two:
+        details = layer_details.get(layer_key, {})
+        issues = details.get("issues", [])
+        if issues:
+            top_issues.append(
+                f"{PARAM_LABELS.get(layer_key, layer_key)}: {issues[0]}"
+            )
+
+    prompt = (
+        "You are writing a short verdict for an academic paper analysis report.\n"
+        "Based on the scores below, write exactly 2-3 sentences summarising the paper's "
+        "overall quality. Be specific, professional, and concise.\n"
+        "Do not repeat the grade or recommendation — those are shown separately.\n"
+        "Do not use bullet points. Plain prose only.\n\n"
+        f"Final score: {final_score}/100 ({grade})\n"
+        "Key issues found:\n" + "\n".join(f"- {i}" for i in top_issues)
+    )
+
+    try:
+        return _call_llm_with_failover(prompt)
+    except Exception:
+        grade_letter = grade.split(" — ")[0].strip() if " — " in grade else "F"
+        fallbacks = {
+            "A": f"This paper demonstrates strong quality across all evaluated dimensions, "
+                 f"achieving a final score of {final_score}/100. "
+                 "It meets the standards expected for academic submission.",
+            "B": f"This paper shows good overall quality with a score of {final_score}/100, "
+                 "but has areas that would benefit from revision. "
+                 "Addressing the identified issues will strengthen the submission.",
+            "C": f"This paper requires significant revision before it is ready for submission, "
+                 f"scoring {final_score}/100. "
+                 "The issues identified across multiple dimensions need to be addressed thoroughly.",
+        }
+        return fallbacks.get(
+            grade_letter,
+            f"This paper is not suitable for submission in its current state, "
+            f"scoring {final_score}/100. "
+            "Substantial revisions are required across multiple evaluation dimensions."
+        )

@@ -831,12 +831,16 @@ def generate_pdf_report(
     grade: str,
     citation_result: dict,
     detected_sections: dict = None,
+    verdict_text: str = None,
 ) -> io.BytesIO:
     """
     Build the full themed PDF report and return as in-memory BytesIO buffer.
 
     Transforms the raw /analyze JSON into the report_data schema required
     by the skill architecture, then builds cover + content pages.
+
+    If verdict_text is provided (from /analyze endpoint), uses it directly.
+    Otherwise, generates verdict via LLM (legacy behavior).
     """
     grade_letter = _get_grade_letter(grade)
     grade_label = GRADE_LABELS.get(grade_letter, "Unknown")
@@ -845,10 +849,13 @@ def generate_pdf_report(
     recommendation = RECOMMENDATION_MAP.get(grade_letter, RECOMMENDATION_MAP["F"])
     status = recommendation.replace("Recommendation: ", "")
 
-    # Generate LLM verdict paragraph
-    verdict_text = _generate_verdict_paragraph(
-        final_score, grade, layer_scores, layer_details,
-    )
+    # Use pre-generated verdict if provided, otherwise generate via LLM
+    if verdict_text:
+        verdict_text = verdict_text
+    else:
+        verdict_text = _generate_verdict_paragraph(
+            final_score, grade, layer_scores, layer_details,
+        )
 
     # Build parameter list (converted from raw 0\u201310 scores to earned/max marks)
     parameters = []

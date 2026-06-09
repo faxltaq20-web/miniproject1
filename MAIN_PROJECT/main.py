@@ -1,4 +1,5 @@
 import os
+import asyncio
 import tempfile
 import requests
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -15,7 +16,7 @@ load_dotenv(dotenv_path=env_path)
 import pdf_parser
 import section_detector
 import gemini_analyzer  # Phase 2
-from gemini_analyzer import check_api_health
+from gemini_analyzer import check_api_health, generate_verdict
 import scoring          # Phase 2
 import citation_checker # Phase 3
 import report_generator # Phase 4
@@ -142,22 +143,22 @@ async def analyze_paper(file: UploadFile = File(...)):
             if not sections.get(s, "").strip():
                 warnings.append(s)
 
-        # Run 4-layer AI analysis
+        # Run 4-layer AI analysis AND citation check in parallel (Area 1)
+        # These operate on independent data — no shared dependencies.
         try:
-            analysis = gemini_analyzer.analyze_paper(sections)
+            analysis, citation_result = await asyncio.gather(
+                asyncio.to_thread(gemini_analyzer.analyze_paper, sections),
+                asyncio.to_thread(
+                    citation_checker.check_citations,
+                    sections.get("references", ""),
+                    full_text=text
+                ),
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=503,
                 detail={"error": "Analysis service unavailable", "message": str(e)}
             )
-
-        # Run citation extraction and CrossRef validation.
-        # NOTE: `sections` here is the ORIGINAL dict — analyze_paper() compresses
-        # a local copy only, so sections["references"] is always raw/uncompressed.
-        citation_result = citation_checker.check_citations(
-            sections.get("references", ""),
-            full_text=text
-        )
 
         # Fill citation score into analysis
         analysis["layer_scores"]["citations"] = citation_result["score"]
@@ -170,6 +171,14 @@ async def analyze_paper(file: UploadFile = File(...)):
         # Calculate weighted confidence score
         score_result = scoring.calculate_score(analysis["layer_scores"])
 
+        # Generate verdict paragraph (moved from report_generator for parallelization)
+        verdict_text = generate_verdict(
+            score_result["final_score"],
+            score_result["grade"],
+            analysis["layer_scores"],
+            analysis["layer_details"],
+        )
+
         # Return enriched response
         return JSONResponse(content={
             "filename": file.filename,
@@ -180,6 +189,7 @@ async def analyze_paper(file: UploadFile = File(...)):
             "layer_details": analysis["layer_details"],
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
+            "verdict_text": verdict_text,
             "citation_result": {
                 "total_refs": citation_result.get("total_refs", 0),
                 "verified": citation_result["verified"],
@@ -216,6 +226,7 @@ async def generate_report(analysis: dict):
                 "unreachable": 0, "flagged_dois": [], "flagged_items": [],
             }),
             detected_sections=analysis.get("detected_sections", {}),
+            verdict_text=analysis.get("verdict_text", None),
         )
     except Exception as e:
         raise HTTPException(
