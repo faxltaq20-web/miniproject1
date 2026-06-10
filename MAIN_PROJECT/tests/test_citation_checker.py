@@ -244,8 +244,9 @@ class TestScoreCalculation:
         # Assert
         assert result["flagged_dois"] == []
 
-    def test_unreachable_counts_against_score(self, monkeypatch):
-        # Arrange — 1 verified, 1 unreachable out of 2 → score = 1/2 * 10 = 5.0
+    def test_unreachable_excluded_from_score(self, monkeypatch):
+        # Arrange — 1 verified, 1 unreachable out of 2
+        # New behavior: unreachable excluded → score = 1/1 * 10 = 10.0
         calls = []
         def fake_validate(doi):
             calls.append(doi)
@@ -255,18 +256,18 @@ class TestScoreCalculation:
         # Act
         result = citation_checker.check_citations(text)
         # Assert
-        assert result["score"] == 5.0, f"Expected 5.0, got {result['score']}"
+        assert result["score"] == 10.0, f"Expected 10.0, got {result['score']}"
         assert result["unreachable"] == 1
 
-    def test_all_unreachable_returns_special_message(self, monkeypatch):
+    def test_all_unreachable_returns_neutral_score(self, monkeypatch):
         # Arrange
         monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "unreachable")
         text = "DOI: 10.1109/5.726791"
         # Act
         result = citation_checker.check_citations(text)
-        # Assert
-        assert result["score"] == 0.0
-        assert any("CrossRef API unreachable" in issue for issue in result["issues"])
+        # Assert — neutral fallback score of 7.0 when all unreachable
+        assert result["score"] == 7.0
+        assert any("throttled" in issue for issue in result["issues"])
         assert result["flagged_dois"] == []
 
     def test_score_rounded_to_one_decimal(self, monkeypatch):
@@ -351,7 +352,7 @@ class TestExtractTitleFromRef:
 
 class TestVerifyTitleSemanticScholar:
 
-    def test_returns_true_for_matching_title(self, monkeypatch):
+    def test_returns_verified_for_matching_title(self, monkeypatch):
         # Arrange — mock requests.get to return a matching title
         class FakeResponse:
             status_code = 200
@@ -362,9 +363,9 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Attention Is All You Need")
         # Assert
-        assert result is True
+        assert result == "verified"
 
-    def test_returns_true_for_similar_title(self, monkeypatch):
+    def test_returns_verified_for_similar_title(self, monkeypatch):
         # Arrange — returned title is slightly different but ratio >= 0.6
         class FakeResponse:
             status_code = 200
@@ -375,9 +376,9 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Attention Is All You Need")
         # Assert
-        assert result is True
+        assert result == "verified"
 
-    def test_returns_false_for_dissimilar_title(self, monkeypatch):
+    def test_returns_not_found_for_dissimilar_title(self, monkeypatch):
         # Arrange — returned title is completely different
         class FakeResponse:
             status_code = 200
@@ -388,9 +389,9 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Attention Is All You Need")
         # Assert
-        assert result is False
+        assert result == "not_found"
 
-    def test_returns_false_for_empty_results(self, monkeypatch):
+    def test_returns_not_found_for_empty_results(self, monkeypatch):
         # Arrange — API returns no papers
         class FakeResponse:
             status_code = 200
@@ -401,9 +402,9 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Nonexistent Paper Title")
         # Assert
-        assert result is False
+        assert result == "not_found"
 
-    def test_returns_false_on_api_error(self, monkeypatch):
+    def test_returns_unreachable_on_api_error(self, monkeypatch):
         # Arrange — API returns 500
         class FakeResponse:
             status_code = 500
@@ -414,9 +415,9 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Some Title")
         # Assert
-        assert result is False
+        assert result == "unreachable"
 
-    def test_returns_false_on_timeout(self, monkeypatch):
+    def test_returns_unreachable_on_timeout(self, monkeypatch):
         # Arrange — requests.get raises a timeout
         import requests as req
         monkeypatch.setattr("citation_checker.requests.get",
@@ -424,13 +425,13 @@ class TestVerifyTitleSemanticScholar:
         # Act
         result = citation_checker._verify_title_semantic_scholar("Some Title")
         # Assert
-        assert result is False
+        assert result == "unreachable"
 
-    def test_returns_false_for_empty_title(self):
-        # Arrange / Act — should return False without making any API call
+    def test_returns_not_found_for_empty_title(self):
+        # Arrange / Act — should return not_found without making any API call
         result = citation_checker._verify_title_semantic_scholar("")
         # Assert
-        assert result is False
+        assert result == "not_found"
 
 
 # ─────────────────────────────────────────────

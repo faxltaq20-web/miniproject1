@@ -197,7 +197,7 @@ def _search_crossref_works(query: str) -> dict:
     return {"matched": False, "title": "", "year": ""}
 
 
-def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> bool:
+def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> str:
     """
     Area 7: Query Semantic Scholar API to verify whether a paper title exists.
 
@@ -205,10 +205,13 @@ def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> bool:
     - If returned paper's year matches ref_year (±1), accept with ratio >= 0.5
     - Otherwise, require ratio >= 0.6
 
-    Returns True if a sufficiently similar match is found, False otherwise.
+    Returns:
+        "verified"   — sufficiently similar match found
+        "not_found"  — no match found in Semantic Scholar
+        "unreachable" — API error (429, 503, timeout, etc.)
     """
     if not title.strip():
-        return False
+        return "not_found"
 
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
@@ -222,12 +225,14 @@ def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> bool:
             # Rate limited — wait and retry once
             time.sleep(1.0)
             response = requests.get(url, params=params, timeout=3)
+        if response.status_code in (429, 503):
+            return "unreachable"
         if response.status_code != 200:
-            return False
+            return "unreachable"
         data = response.json()
         papers = data.get("data", [])
         if not papers:
-            return False
+            return "not_found"
 
         # Year-aware matching: check top 3 results
         ref_year_int = int(ref_year) if ref_year and ref_year.isdigit() else None
@@ -241,13 +246,15 @@ def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> bool:
             # Year-aware threshold: if years match (±1), relax similarity threshold
             if ref_year_int and paper_year:
                 if abs(ref_year_int - paper_year) <= 1 and ratio >= 0.5:
-                    return True
+                    return "verified"
             if ratio >= 0.6:
-                return True
+                return "verified"
 
-        return False
-    except (requests.RequestException, ValueError, KeyError):
-        return False
+        return "not_found"
+    except requests.RequestException:
+        return "unreachable"
+    except (ValueError, KeyError):
+        return "not_found"
 
 
 def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
@@ -258,7 +265,7 @@ def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
     concurrently using a ThreadPoolExecutor with 5 workers.
 
     Returns:
-        {"verified": int, "not_found": int, "checked": int}
+        {"verified": int, "not_found": int, "unreachable": int, "checked": int}
     """
     # Extract titles and years from reference lines
     checks = []
@@ -269,7 +276,7 @@ def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
             checks.append((title, year))
 
     if not checks:
-        return {"verified": 0, "not_found": 0, "checked": 0}
+        return {"verified": 0, "not_found": 0, "unreachable": 0, "checked": 0}
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {
@@ -281,14 +288,16 @@ def _verify_references_parallel(ref_lines: list, max_refs: int = 10) -> dict:
             try:
                 results.append(future.result())
             except Exception:
-                results.append(False)
+                results.append("unreachable")
 
-    verified = sum(1 for r in results if r)
-    not_found = sum(1 for r in results if not r)
+    verified = sum(1 for r in results if r == "verified")
+    not_found = sum(1 for r in results if r == "not_found")
+    unreachable = sum(1 for r in results if r == "unreachable")
 
     return {
         "verified": verified,
         "not_found": not_found,
+        "unreachable": unreachable,
         "checked": len(checks)
     }
 
@@ -378,11 +387,14 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         verification = _verify_references_parallel(ref_lines)
         verified_count = verification["verified"]
         not_found_count = verification["not_found"]
+        unreachable_count = verification.get("unreachable", 0)
         checked_count = verification["checked"]
 
-        # Score based on verification ratio
-        if checked_count > 0:
-            ratio = verified_count / checked_count
+        # Fair score: exclude unreachable from calculation
+        # Score = verified / (verified + not_found) * 10
+        scorable = verified_count + not_found_count
+        if scorable > 0:
+            ratio = verified_count / scorable
             if ratio >= 0.8:
                 ref_score = 10.0
             elif ratio >= 0.5:
@@ -391,6 +403,9 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
                 ref_score = 5.0
             else:
                 ref_score = 3.0
+        elif unreachable_count > 0 and checked_count > 0:
+            # All references unreachable — neutral fallback
+            ref_score = 7.0
         else:
             # No titles could be extracted — minimal credit for having references
             ref_score = 3.0 if total_refs >= 1 else 0.0
@@ -404,6 +419,10 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             issues.append(
                 f"Could not extract titles from {total_refs} reference entries for verification."
             )
+        if unreachable_count > 0:
+            issues.append(
+                f"{unreachable_count} reference(s) unreachable during verification (excluded from score)."
+            )
 
         # Check for duplicates even without DOIs
         duplicate_flags = _detect_duplicates(references_text)
@@ -416,7 +435,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             "total_refs": total_refs,
             "verified": verified_count,
             "not_found": not_found_count,
-            "unreachable": 0,
+            "unreachable": unreachable_count,
             "flagged_dois": [],
             "flagged_items": duplicate_flags,
             "issues": issues,
@@ -446,7 +465,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     # Area 7: Two-tier fallback for not-found DOIs (parallelized)
     # Try title-based Semantic Scholar, then CrossRef Works Search
     def _fallback_verify_doi(doi: str) -> tuple:
-        """Try both fallback tiers for a single DOI. Returns (doi, verified)."""
+        """Try both fallback tiers for a single DOI. Returns (doi, status)."""
         # Find the reference line containing this DOI
         matching_line = ""
         for line in ref_lines:
@@ -455,22 +474,27 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
                 break
 
         if not matching_line:
-            return (doi, False)
+            return (doi, "not_found")
 
         # Extract title and year for fallback search
         title = _extract_title_from_ref(matching_line)
         year = _extract_year_from_ref(matching_line)
 
         # Tier 1: Try Semantic Scholar title search
-        if title and _verify_title_semantic_scholar(title, year):
-            return (doi, True)
+        if title:
+            ss_status = _verify_title_semantic_scholar(title, year)
+            if ss_status == "verified":
+                return (doi, "verified")
+            # If unreachable, don't try tier 2 — API might be down
+            if ss_status == "unreachable":
+                return (doi, "unreachable")
 
         # Tier 2: Try CrossRef Works Search API
         crossref_result = _search_crossref_works(matching_line)
         if crossref_result and crossref_result.get("matched"):
-            return (doi, True)
+            return (doi, "verified")
 
-        return (doi, False)
+        return (doi, "not_found")
 
     # Run fallback verification in parallel
     if flagged_dois:
@@ -478,8 +502,8 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             futures = {executor.submit(_fallback_verify_doi, doi): doi for doi in flagged_dois}
             for future in as_completed(futures):
                 try:
-                    doi, verified = future.result()
-                    if verified:
+                    doi, status = future.result()
+                    if status == "verified":
                         results[doi] = "verified"
                         flagged_dois.remove(doi)
                         verified_count += 1
@@ -511,22 +535,24 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     duplicate_flags = _detect_duplicates(references_text)
     flagged_items.extend(duplicate_flags)
 
-    # All DOIs unreachable — special case
+    # All DOIs unreachable — neutral fallback score
     if unreachable_count == len(dois):
         return {
-            "score": 0.0,
+            "score": 7.0,
             "total_refs": total_refs,
             "verified": 0,
             "not_found": 0,
             "unreachable": unreachable_count,
             "flagged_dois": [],
             "flagged_items": [],
-            "issues": ["Citation verification unavailable — CrossRef API unreachable."],
-            "suggestions": ["Retry the analysis when network access is available."],
+            "issues": ["Citation verification throttled — all DOIs unreachable. Neutral score applied."],
+            "suggestions": ["Retry the analysis when API demand is lower."],
         }
 
-    # Score = verified / total_dois * 10
-    score = round((verified_count / len(dois)) * 10, 1)
+    # Fair score: exclude unreachable from calculation
+    # Score = verified / (verified + not_found) * 10
+    scorable = verified_count + not_found_count
+    score = round((verified_count / scorable) * 10, 1) if scorable > 0 else 7.0
 
     # Build human-readable issues and suggestions
     issues = []
