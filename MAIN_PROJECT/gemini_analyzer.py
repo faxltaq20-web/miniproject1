@@ -111,6 +111,7 @@ RESPONSE_SCHEMA = {
 # ─── Area 3: System Instruction (static prompt cached by Gemini) ─────────────
 SYSTEM_PROMPT = """You are an experienced academic paper reviewer. Evaluate research papers across 4 dimensions.
 For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 2), and a list of actionable suggestions (minimum 2).
+Keep issues and suggestions concise (maximum 1-2 sentences each) and focus on specific, high-impact improvements.
 
 SCORING RUBRIC — use this to assign consistent scores:
   9-10: Exceptional — publishable quality, no significant issues found in the content
@@ -236,7 +237,7 @@ def _call_single_key(key_name: str, client, prompt: str,
             config_kwargs = {
                 "temperature": 0.0,
                 "top_p": 0.8,              # Area 6: tighter distribution
-                "max_output_tokens": 2048,  # Area 6: typical response is 800-1200 tokens
+                "max_output_tokens": 8000,  # Area 6: raised to avoid truncation of JSON output
             }
             if use_structured_output:
                 config_kwargs["response_mime_type"] = "application/json"
@@ -473,7 +474,10 @@ def analyze_paper(sections: dict) -> dict:
     }
 
     # ── Area 5: Save to cache ───────────────────────────────────────────
-    _save_cache(_cache_key, result)
+    # Only cache if the analysis actually succeeded (no keys in layer_details have analysis_failed=True)
+    is_success = not any(v.get("analysis_failed", False) for v in layer_details.values() if isinstance(v, dict))
+    if is_success:
+        _save_cache(_cache_key, result)
 
     return result
 
