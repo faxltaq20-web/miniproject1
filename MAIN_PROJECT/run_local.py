@@ -3,6 +3,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 # Reconfigure stdout/stderr to UTF-8 to support emojis on Windows terminals
@@ -85,23 +86,29 @@ def run_pipeline(pdf_path: str):
     for name, confidence in detected_sections.items():
         print(f"     ✓ {name} {confidence}%")
 
-    # ── Step 3: Multi-Layer AI Analysis ───────────────────────────────────
+    # ── Step 3 & 4: AI Analysis + Citation Check (parallel — Area 1) ─────
     _cmode = os.getenv("COMPRESSION_MODE", "light")
-    print(f"⏳ [3/5] Running multi-layer AI analysis... (compression={_cmode})")
-    try:
-        analysis = gemini_analyzer.analyze_paper(sections)
-    except Exception as e:
-        print(f"❌ AI analysis failed: {e}")
-        return
+    print(f"⏳ [3-4/5] Running AI analysis + citation check in parallel... (compression={_cmode})")
 
-    # ── Step 4: Citation Check ──────────────────────────────────────────
-    print("⏳ [4/5] Validating citations with CrossRef...")
-    # NOTE: `sections` here is the ORIGINAL dict — analyze_paper() compresses
-    # a local copy only, so sections["references"] is always raw/uncompressed.
-    citation_result = citation_checker.check_citations(
-        sections.get("references", ""),
-        full_text=text
-    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        analysis_future = executor.submit(gemini_analyzer.analyze_paper, sections)
+        citation_future = executor.submit(
+            citation_checker.check_citations,
+            sections.get("references", ""),
+            full_text=text
+        )
+
+        try:
+            analysis = analysis_future.result()
+        except Exception as e:
+            print(f"❌ AI analysis failed: {e}")
+            return
+
+        try:
+            citation_result = citation_future.result()
+        except Exception as e:
+            print(f"❌ Citation check failed: {e}")
+            return
 
     # Fill citation score into analysis
     analysis["layer_scores"]["citations"] = citation_result["score"]

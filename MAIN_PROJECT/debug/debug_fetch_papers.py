@@ -263,7 +263,14 @@ def fetch_papers():
 
                 pdf_path = os.path.join(PAPERS_DIR, f"{name}_{arxiv_id.replace('/', '_')}.pdf")
 
-                if _download_pdf(pdf_url, pdf_path):
+                downloaded_ok = False
+                if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+                    print(f"   ✓ File already exists: {os.path.basename(pdf_path)} (skipping download)", flush=True)
+                    downloaded_ok = True
+                else:
+                    downloaded_ok = _download_pdf(pdf_url, pdf_path)
+
+                if downloaded_ok:
                     meta_path = _write_metadata(
                         name=f"{name}_{arxiv_id.replace('/', '_')}",
                         arxiv_id=arxiv_id,
@@ -298,7 +305,14 @@ def fetch_papers():
 
             pdf_path = os.path.join(PAPERS_DIR, f"{name}_{arxiv_id.replace('/', '_')}.pdf")
 
-            if _download_pdf(pdf_url, pdf_path):
+            downloaded_ok = False
+            if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+                print(f"   ✓ File already exists: {os.path.basename(pdf_path)} (skipping download)", flush=True)
+                downloaded_ok = True
+            else:
+                downloaded_ok = _download_pdf(pdf_url, pdf_path)
+
+            if downloaded_ok:
                 meta_path = _write_metadata(
                     name=f"{name}_{arxiv_id.replace('/', '_')}",
                     arxiv_id=arxiv_id,
