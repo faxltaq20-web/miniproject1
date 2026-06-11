@@ -268,6 +268,23 @@ async function runLivePaperAnalysis(file) {
     }
 }
 
+// Score counter ticker — counts from 0 to targetScore over ~1.8s
+function animateScore(targetScore) {
+    const el = document.getElementById("gaugeScoreText");
+    if (!el) return;
+    let count = 0;
+    const steps = Math.max(Math.round(targetScore), 1);
+    const stepDuration = 1800 / steps;
+    const timer = setInterval(() => {
+        count++;
+        el.textContent = count;
+        if (count >= steps) {
+            el.textContent = Math.round(targetScore);
+            clearInterval(timer);
+        }
+    }, stepDuration);
+}
+
 // -------------------------------------------------------------
 // 6. Data Binding & Dynamic Rendering Logic
 // -------------------------------------------------------------
@@ -277,9 +294,9 @@ function populateDashboardView(data) {
 
     // 2. Score SVGs Gauge
     const targetScore = Math.round(data.final_score);
-    document.getElementById("gaugeScoreText").textContent = targetScore;
+    animateScore(data.final_score);  // ticker animation: 0 → score
     
-    // Animate SVG Gauge
+    // Animate SVG Gauge arc
     const circumference = 2 * Math.PI * 80; // ≈ 502.6
     const offset = circumference * (1 - targetScore / 100);
     const circle = document.getElementById("gaugeCircle");
@@ -292,29 +309,44 @@ function populateDashboardView(data) {
     const rec = document.getElementById("recBadge");
     badge.textContent = data.grade;
 
-    // Semantic colors setup
+    // Grade-letter-based recommendation mapping
+    const gradeLetter = data.grade ? data.grade.charAt(0).toUpperCase() : "F";
     let colorClass = "var(--accent-danger)";
-    let recText = "NOT RECOMMENDED FOR SUBMISSION";
-    
-    if (targetScore >= 85) {
+    let recText = "NOT READY FOR SUBMISSION";
+
+
+    if (gradeLetter === "A" || gradeLetter === "B") {
         colorClass = "var(--accent-success)";
         recText = "RECOMMENDED FOR JOURNAL SUBMISSION";
-    } else if (targetScore >= 70) {
-        colorClass = "var(--accent-success)";
-        recText = "RECOMMENDED WITH MINOR REVISIONS";
-    } else if (targetScore >= 55) {
+    } else if (gradeLetter === "C") {
         colorClass = "var(--accent-warning)";
-        recText = "MINOR REVISIONS MANDATORY BEFORE SUBMISSION";
-    } else if (targetScore >= 40) {
+        recText = "MINOR REVISIONS REQUIRED";
+    } else if (gradeLetter === "D") {
         colorClass = "var(--accent-danger)";
         recText = "SIGNIFICANT REVISIONS REQUIRED";
     }
-    
-    circle.style.stroke = colorClass;
+
     badge.style.color = colorClass;
     rec.style.color = colorClass;
     rec.style.backgroundColor = `rgba(${colorClass === "var(--accent-success)" ? "16, 185, 129" : colorClass === "var(--accent-warning)" ? "245, 158, 11" : "239, 68, 68"}, 0.12)`;
     rec.textContent = recText;
+
+    // Grade badge class for CSS color-coding
+    badge.classList.remove("grade-a", "grade-b", "grade-c", "grade-d", "grade-f");
+    badge.classList.add(`grade-${gradeLetter.toLowerCase()}`);
+
+    // Score-range gauge stroke color (independent of grade badge)
+    let gaugeStrokeColor;
+    if (targetScore >= 85) {
+        gaugeStrokeColor = "#10B981";   // emerald
+    } else if (targetScore >= 70) {
+        gaugeStrokeColor = "#06b6d4";   // cyan
+    } else if (targetScore >= 55) {
+        gaugeStrokeColor = "#F59E0B";   // amber
+    } else {
+        gaugeStrokeColor = "#EF4444";   // red
+    }
+    circle.style.stroke = gaugeStrokeColor;
 
     // 3. Section Detection Pills
     const sectionContainer = document.getElementById("sectionPills");
@@ -348,11 +380,11 @@ function populateDashboardView(data) {
     accordionContainer.innerHTML = "";
 
     const activeLayers = [
-        { key: "structure_sections", label: "Structure & Sections", num: "01" },
-        { key: "clarity_writing", label: "Clarity & Writing", num: "02" },
-        { key: "methodology_rigor", label: "Methodology Rigor", num: "03" },
-        { key: "evidence_claims", label: "Evidence & Claims", num: "04" },
-        { key: "citations", label: "Citations & References", num: "05" }
+        { key: "structure_sections", label: "Structure & Sections", num: "01", weight: "20%" },
+        { key: "clarity_writing",    label: "Clarity & Writing",    num: "02", weight: "25%" },
+        { key: "methodology_rigor",  label: "Methodology Rigor",    num: "03", weight: "25%" },
+        { key: "evidence_claims",    label: "Evidence & Claims",    num: "04", weight: "20%" },
+        { key: "citations",          label: "Citations & References", num: "05", weight: "10%" }
     ];
 
     activeLayers.forEach(layer => {
@@ -392,6 +424,10 @@ function populateDashboardView(data) {
 
         const metaBlock = document.createElement("div");
         metaBlock.className = "layer-meta-block";
+
+        const weightSpan = document.createElement("span");
+        weightSpan.className = "layer-weight";
+        weightSpan.textContent = layer.weight;
         
         const scoreSpan = document.createElement("span");
         scoreSpan.className = "layer-score font-mono";
@@ -402,6 +438,7 @@ function populateDashboardView(data) {
         chevron.className = "layer-chevron";
         chevron.textContent = "›";
 
+        metaBlock.appendChild(weightSpan);
         metaBlock.appendChild(scoreSpan);
         metaBlock.appendChild(chevron);
 
@@ -472,7 +509,12 @@ function populateDashboardView(data) {
 
         splitDiv.appendChild(leftCol);
         splitDiv.appendChild(rightCol);
-        body.appendChild(splitDiv);
+
+        // layer-body-inner required for CSS grid-rows accordion animation
+        const bodyInner = document.createElement("div");
+        bodyInner.className = "layer-body-inner";
+        bodyInner.appendChild(splitDiv);
+        body.appendChild(bodyInner);
 
         card.appendChild(header);
         card.appendChild(body);
@@ -480,8 +522,8 @@ function populateDashboardView(data) {
     });
 
     // 5. Verdict Paragraph
-    const verdict = data.layer_details.verdict || "No feedback generated.";
-    document.getElementById("qualitativeVerdictText").textContent = data.layer_details.verdict ? (typeof data.layer_details.verdict === 'string' ? data.layer_details.verdict : JSON.stringify(data.layer_details.verdict)) : verdict;
+    const verdict = data.verdict_text || data.layer_details?.verdict || "No feedback generated.";
+    document.getElementById("qualitativeVerdictText").textContent = verdict;
 
     // 6. Citations & References Panel
     const cr = data.citation_result || { total_refs: 0, verified: 0, not_found: 0, unreachable: 0, flagged_dois: [], flagged_items: [] };
@@ -564,42 +606,36 @@ function populateDashboardView(data) {
             tableBody.appendChild(row);
         });
 
-        // Scaffold verified sample references dynamically to populate the total verified count
-        const sampleVerifiedTitles = [
-            "Vaswani et al., 2017, Attention Is All You Need",
-            "Devlin et al., 2018, BERT: Pre-training of Deep Bidirectional Transformers",
-            "Brown et al., 2020, Language Models are Few-Shot Learners",
-            "Sutskever et al., 2014, Sequence to Sequence Learning with Neural Networks",
-            "Bahdanau et al., 2014, Neural Machine Translation by Jointly Learning to Align and Translate"
-        ];
-
-        for (let i = 0; i < Math.min(cr.verified, sampleVerifiedTitles.length); i++) {
+        // Show verified count as summary row (real API data)
+        if (cr.verified > 0) {
             const row = document.createElement("tr");
+            row.className = "ref-row";
 
-            // Col 1: Name details
             const col1 = document.createElement("td");
             col1.className = "ref-citation-entry";
-            col1.innerHTML = `<div class="tooltip">${sampleVerifiedTitles[i]}<span class="tooltiptext">Verified via Semantic Scholar.<br><b>Year:</b> 2017–2020<br><b>Citations Count:</b> 25,482<br><b>Publisher:</b> Joint Conference</span></div>`;
+            col1.innerHTML = `<div class="tooltip">${cr.verified} citation${cr.verified > 1 ? "s" : ""} verified<span class="tooltiptext">Verified against Semantic Scholar title index and CrossRef DOI registry.</span></div>`;
             row.appendChild(col1);
 
-            // Col 2: Method
             const col2 = document.createElement("td");
             col2.className = "font-mono";
             col2.textContent = "Semantic Scholar";
             row.appendChild(col2);
 
-            // Col 3: Status badging
             const col3 = document.createElement("td");
             col3.innerHTML = `<span class="ref-badge success">VERIFIED</span>`;
             row.appendChild(col3);
 
-            // Col 4: Impact details
             const col4 = document.createElement("td");
-            col4.textContent = "Paper successfully matched in reference libraries.";
+            col4.textContent = `${cr.verified} citation${cr.verified > 1 ? "s" : ""} successfully matched in reference libraries.`;
             row.appendChild(col4);
 
             tableBody.appendChild(row);
         }
+    }
+
+    // Score=0 failover — warn user if Gemini returned no score (likely quota exhausted)
+    if (data.final_score === 0.0) {
+        showToastNotification("⚠ Gemini returned a score of 0 — API quota may be exhausted. Try the sample demo.", false);
     }
 }
 

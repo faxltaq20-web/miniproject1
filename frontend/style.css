@@ -38,6 +38,10 @@
     --space-md: 16px;
     --space-lg: 24px;
     --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* Transitions */
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Base Styles */
@@ -50,6 +54,12 @@
 
 body {
     background-color: var(--bg-base);
+    background: radial-gradient(
+        ellipse at 30% 20%,
+        hsla(223, 60%, 18%, 0.8) 0%,
+        var(--bg-base) 65%
+    );
+    min-height: 100vh;
     color: #f1f5f9;
     overflow-x: hidden;
     line-height: 1.5;
@@ -364,6 +374,9 @@ body {
 .step.active .step-icon {
     color: var(--accent-data);
     animation: active-pulse 1.2s ease-in-out infinite;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+    border-radius: 50%;
+    padding: 2px;
 }
 
 .step.active .step-title {
@@ -533,6 +546,37 @@ body {
     width: 100%;
 }
 
+/* Grade Badge — color-coded by grade letter (class added via JS) */
+.grade-badge.grade-a {
+    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+    border-color: rgba(16,185,129,0.4);
+    color: #10B981;
+}
+
+.grade-badge.grade-b {
+    background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05));
+    border-color: rgba(59,130,246,0.4);
+    color: #60a5fa;
+}
+
+.grade-badge.grade-c {
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+    border-color: rgba(245,158,11,0.4);
+    color: #F59E0B;
+}
+
+.grade-badge.grade-d {
+    background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+    border-color: rgba(239,68,68,0.4);
+    color: #EF4444;
+}
+
+.grade-badge.grade-f {
+    background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+    border-color: rgba(239,68,68,0.4);
+    color: #EF4444;
+}
+
 /* Hero Sections Pill Grid */
 .hero-sections {
     flex-grow: 1;
@@ -664,12 +708,29 @@ body {
     transition: transform 0.3s ease;
 }
 
+/* Layer Weight Chip — shown in accordion header meta block */
+.layer-weight {
+    font-family: var(--font-data);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: var(--bg-raised);
+    padding: 2px 8px;
+    border-radius: 99px;
+    border: 1px solid var(--border-subtle);
+}
+
 .layer-body {
-    max-height: 0;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s ease;
     overflow: hidden;
-    transition: max-height 0.35s ease, padding 0.35s ease;
-    padding: 0 20px;
     border-top: 1px solid transparent;
+}
+
+.layer-body-inner {
+    min-height: 0;
+    padding: 0 20px 20px;
 }
 
 /* Open Card State */
@@ -678,8 +739,7 @@ body {
 }
 
 .layer-card.open .layer-body {
-    max-height: 500px;
-    padding-bottom: 20px;
+    grid-template-rows: 1fr;
     border-top-color: var(--border-glow);
 }
 
@@ -921,6 +981,12 @@ body {
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.ref-badge.unreachable {
+    background: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 /* Slide-in custom toast alert */
 .toast-toast {
     position: fixed;
@@ -1029,5 +1095,26 @@ body {
     
     .layer-content-split {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-pill-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ref-table-wrapper {
+        overflow-x: scroll;
+    }
+
+    .citation-metrics-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .hero-labels {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
 }
