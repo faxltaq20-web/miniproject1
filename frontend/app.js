@@ -2,7 +2,7 @@
    RESEARCHSENSE CLIENT ORCHESTRATION & API CONNECTIONS (JS)
    ------------------------------------------------------------- */
 
-const BACKEND_URL = "http://127.0.0.1:8000";
+const BACKEND_URL = "http://localhost:8000";
 
 // Global storage for current paper's analysis response
 let currentAnalysisData = null;
@@ -37,42 +37,12 @@ async function checkBackendHealth() {
     const text = document.getElementById("diagnosticsText");
     const dot = badge.querySelector(".status-dot");
 
-    // Show "connecting" state while checking
-    dot.className = "status-dot degraded";
-    text.textContent = "System: Connecting...";
-    badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
-
-    // Helper: single health check attempt with timeout
-    async function attemptHealthCheck() {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/health`, {
-                method: "GET",
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) throw new Error("Status degraded");
-            return await response.json();
-        } catch (e) {
-            clearTimeout(timeoutId);
-            throw e;
-        }
-    }
-
     try {
-        // First attempt
-        let health;
-        try {
-            health = await attemptHealthCheck();
-        } catch (firstError) {
-            // Server might still be starting — wait 3s and retry once
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            health = await attemptHealthCheck();
-        }
-
+        const response = await fetch(`${BACKEND_URL}/health`, { method: "GET" });
+        if (!response.ok) throw new Error("Status degraded");
+        
+        const health = await response.json();
+        
         if (health.status === "healthy") {
             dot.className = "status-dot healthy";
             text.textContent = "System: Healthy";

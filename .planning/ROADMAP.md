@@ -13,7 +13,7 @@
 | [Phase 8: Web Frontend Dashboard](#phase-8-web-frontend-dashboard) | Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading |
 | [Phase 9: Automated End-to-End Debugging](#phase-9-automated-end-to-end-debugging) | Auto-fetch real academic papers, run the full pipeline with Gemini AI API, and validate nothing is missing |
 | [Phase 10: API Token Efficiency & Input Compression](#phase-10-api-token-efficiency--input-compression) | Reduce Gemini API token usage by ≥40% via structured text normalization and semantic compression without score drift |
-
+| [Phase 11: Improve the frontend UI](#phase-11-improve-the-frontend-ui) | Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience |
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -21,6 +21,7 @@
 **Depends on:** Phase 1 (sections dict contract from section_detector.py)
 
 **Requirements Mapped:**
+
 - AI-01: Grammar & Language evaluation (Layer 1)
 - AI-02: Readability Score evaluation (Layer 2)
 - AI-03: Abstract Quality evaluation (Layer 3)
@@ -31,6 +32,7 @@
 - CORE-05: API rate limit handling with exponential backoff
 
 **Success Criteria:**
+
 1. `gemini_analyzer.py` exists and `analyze_paper(sections: dict) -> dict` is callable
 2. Single Gemini prompt returns all 7 layers in one API call
 3. Each layer returns: `score` (0-10), `issues` (list of str), `suggestions` (list of str)
@@ -40,29 +42,35 @@
 **Plans:** 1 plans
 
 Plans:
+
 - [x] Plan 1: Gemini 7-Layer AI Analysis Engine (merged with Phase 6)
 
 ---
 
 ## Phase 1: Environment & PDF Parser
+
 **Goal:** Set up API scaffolding and extract/segment text from PDFs
 
 **Requirements Mapped:**
+
 - CORE-01: User can upload a PDF research paper via Web UI
 - CORE-02: System extracts text from the PDF using PyMuPDF (with OCR fallback)
 - CORE-03: System segments extracted text into standard academic sections
 - CORE-04: FastAPI backend orchestrates the full analysis pipeline
 
 **Success Criteria:**
+
 1. FastAPI app starts and accepts a PDF upload on `/analyze`
 2. PyMuPDF successfully extracts raw text
 3. Section parsing splits text using regex (with Gemini fallback capability)
 4. JSON payload returns identified sections gracefully
 
 ## Phase 2: AI Analysis Engine
+
 **Goal:** Implement the 7-layer Gemini AI evaluations
 
 **Requirements Mapped:**
+
 - AI-01: System evaluates Grammar & Language (Layer 1) via Gemini API
 - AI-02: System evaluates Readability Score (Layer 2) via Gemini API
 - AI-03: System evaluates Abstract Quality (Layer 3) via Gemini API
@@ -73,6 +81,7 @@ Plans:
 - CORE-05: System handles API rate limits with exponential backoff and gracefully degrades on failures
 
 **Success Criteria:**
+
 1. Integration with `google-generativeai` is working and authenticates
 2. Each of the 7 layers maps to an independent AI analysis prompt
 3. Rate limits are handled properly using exponential backoff/retries
@@ -80,40 +89,47 @@ Plans:
 5. Graceful error responses when Gemini returns invalid JSON or times out
 
 ## Phase 3: Citations & Scoring
+
 **Goal:** Validate references and compute final weighted scores
 
 **Requirements Mapped:**
+
 - CITE-01: System extracts citations and references from the paper
 - CITE-02: System verifies citation existence/credibility via Semantic Scholar API
 - CITE-03: System validates DOIs via CrossRef API
 - REP-01: System calculates a weighted confidence score (0-100) and letter grade
 
 **Success Criteria:**
+
 1. CrossRef validation parses DOIs from references correctly
 2. Semantic Scholar API effectively queries titles to evaluate citations
 3. The 8 metrics are unified to compute the final letter grade and confidence score
 
 ## Phase 4: Reporting & Web UI
+
 **Goal:** Generate PDF reports and wire up the final UI
 
-
 **Requirements Mapped:**
+
 - REP-02: System generates a structured PDF report using ReportLab
 - REP-03: Web UI displays the final score, grade, and breakdown to the user
 - REP-04: User can download the generated PDF report
 
 **Success Criteria:**
+
 1. Backend `/analyze` endpoint outputs a downloadable PDF using ReportLab
 2. A single-page HTML UI exists with drag-and-drop file support
 3. UI presents the score breakdown visually to the user
 4. Pre-cached sample results available as demo-day backup
 
 ## Phase 6: Output Quality Optimization
+
 **Goal:** Improve analysis accuracy, report quality, and overall pipeline robustness
 
 **Depends on:** Phase 1-4 (core pipeline must be functional)
 
 **Requirements Mapped:**
+
 - OPT-01: Improve LLM prompt quality for more consistent, detailed scoring
 - OPT-02: Better handling of non-standard paper structures (review papers, short papers, theses)
 - OPT-03: Enhance PDF report layout and readability (spacing, fonts, visual hierarchy)
@@ -122,6 +138,7 @@ Plans:
 - OPT-06: Optimize text truncation strategy for LLM context window usage
 
 **Success Criteria:**
+
 1. Analysis produces consistent scores across repeated runs on the same paper
 2. Papers with non-standard sections (e.g., "Background" instead of "Related Work") are correctly parsed
 3. PDF report has no clipping, overflow, or layout issues
@@ -130,6 +147,7 @@ Plans:
 6. LLM prompt uses full context window efficiently (no wasted tokens)
 
 Plans:
+
 - [x] Plan 1: Prompt Engineering & Scoring Consistency
 - [x] Plan 2: Non-Standard Paper Handling
 - [x] Plan 3: PDF Report Polish
@@ -139,21 +157,25 @@ Plans:
 ---
 
 ## Phase 7: Output Consistency and Overall Refinement
+
 **Goal:** Improve the consistency of LLM analysis outputs and refine all pipeline components and report outputs for production readiness.
 
 **Depends on:** Phase 6 (optimization of the core pipeline must be completed and audited)
 
 **Requirements Mapped:**
+
 - OPT-01: Improve LLM prompt quality for more consistent, detailed scoring
 - OPT-03: Enhance PDF report layout and readability (spacing, fonts, visual hierarchy)
 - OPT-05: Add error recovery and graceful degradation for edge cases
 
 **Success Criteria:**
+
 1. LLM scoring output is highly consistent across multiple identical runs.
 2. Layout alignment, fonts, and spacing are polished across all report types and sizes.
 3. Enhanced robustness for complex PDFs with advanced failover mechanisms.
 
 Plans:
+
 - [x] Plan 1: Deterministic Scoring & Few-Shot Prompting
 - [x] Plan 2: Parallel Citation Title Verification
 - [x] Plan 3: PDF Spacing, Formatting & Safe Keeping
@@ -162,15 +184,18 @@ Plans:
 ---
 
 ## Phase 8: Web Frontend Dashboard
+
 **Goal:** Implement the premium client-facing Web UI dashboard with glassmorphic aesthetics, dynamic steppers, SVGs, diagnostics, and interactive PDF downloading.
 
 **Depends on:** Phase 7 (optimized and deterministic backend APIs must be operational)
 
 **Requirements Mapped:**
+
 - REP-03: Web UI displays the final score, grade, and breakdown to the user
 - REP-04: User can download the generated PDF report
 
 **Success Criteria:**
+
 1. A single-page, highly responsive HTML/CSS/JS frontend dashboard exists inside `frontend/`.
 2. Fully interactive file upload supporting drag-and-drop and strict `.pdf` validation.
 3. Multi-stage visual stepper dynamically showing the 5 backend processing steps.
@@ -182,6 +207,7 @@ Plans:
 9. Footnote diagnostic badge displaying real-time API health status calling `/health`.
 
 Plans:
+
 - [x] Plan 1: UI Mockup & Static Pages Scaffolding
 - [x] Plan 2: Modern Glassmorphic Design System (CSS)
 - [x] Plan 3: Client Orchestration & API Connectivity (JS)
@@ -190,11 +216,13 @@ Plans:
 ---
 
 ## Phase 9: Automated End-to-End Debugging
+
 **Goal:** Build an automated test harness that fetches real academic papers from open-access sources (arXiv, Semantic Scholar OA), runs each through the full ResearchSense pipeline (PDF parse → section detect → Gemini AI analysis → citation check → scoring → report generation), and validates that nothing is missing, broken, or inconsistent — catching bugs across diverse paper types before demo day.
 
 **Depends on:** Phase 8 (all pipeline and UI components must be operational)
 
 **Requirements Mapped:**
+
 - DEBUG-01: Automated paper fetcher pulls real PDFs from arXiv and Semantic Scholar Open Access APIs
 - DEBUG-02: Full pipeline runner executes /analyze and /report endpoints against each fetched paper
 - DEBUG-03: Output validator checks response schemas, score ranges, section detection completeness, and report PDF integrity
@@ -203,6 +231,7 @@ Plans:
 - DEBUG-06: Summary report aggregates pass/fail/warning counts across all test papers with detailed diagnostics
 
 **Success Criteria:**
+
 1. Test harness fetches ≥5 diverse real papers automatically (CS, medicine, social science, review papers, short papers)
 2. Each paper runs through the full `/analyze` → `/report` pipeline without crashes
 3. All response JSON schemas match expected structure (layer_scores, layer_details, citation_result, final_score, grade)
@@ -216,6 +245,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
+
 - [ ] Plan 1: Real Paper Fetcher — arXiv & Semantic Scholar OA
 - [ ] Plan 2: Full Pipeline Runner — `/analyze` + `/report` per Paper
 - [ ] Plan 3: Output Validator & Gap Analyzer — Schema + Completeness Checks
@@ -224,6 +254,7 @@ Plans:
 ---
 
 ## Phase 10: API Token Efficiency & Input Compression
+
 **Goal:** Reduce the number of tokens sent to the Gemini API per paper analysis call — without losing the semantic content needed for accurate scoring — by applying a structured text normalization and compression pipeline on extracted paper sections before they are assembled into the LLM prompt.
 
 **Depends on:** Phase 9 (baseline pipeline must be fully validated so we have ground-truth output to compare against)
@@ -247,6 +278,7 @@ This is formally known in NLP literature as **"prompt compression"** or **"conte
 ### 📐 Why This Matters (Current Numbers)
 
 From `token_budget.py` analysis:
+
 - A real paper sends ~**150,000 chars** (the `MAX_TOTAL` cap in `gemini_analyzer.py`)
 - Even with smart per-section limits, we send ~**18,500 chars ≈ 4,625 tokens** of paper content
 - The Gemini free-tier bottleneck is **500 RPD** — NOT token count per call
@@ -261,6 +293,7 @@ From `token_budget.py` analysis:
 > *Research keyword: "extractive prompt compression"*
 
 Transform each section into a normalized, shorter but semantically-equivalent representation:
+
 - Strip boilerplate phrases: "In this paper, we...", "It is worth noting that..."
 - Collapse whitespace, remove footnote markers, fix OCR noise
 - Deduplicate repeated sentences (common in methodology/results sections)
@@ -271,6 +304,7 @@ Transform each section into a normalized, shorter but semantically-equivalent re
 > *Research keyword: "extractive summarization for RAG / prompt engineering"*
 
 Use `sentence-transformers` or `spacy` to score each sentence by relevance to the evaluation criteria (structure, clarity, methodology, evidence) and keep only top-K sentences per section:
+
 - Each section → top 5–10 most "review-relevant" sentences
 - Assembles a compact, information-dense "review digest"
 - **Expected reduction: 60–75%** with high semantic fidelity
@@ -279,6 +313,7 @@ Use `sentence-transformers` or `spacy` to score each sentence by relevance to th
 > *Research keyword: "LLM prompt compression / selective context compression (LLMLingua)"*
 
 Send the full text to a cheap/fast LLM first, asking it to produce a "review digest" in structured format, then send THAT digest to the main scorer:
+
 - Two-stage pipeline: compress → score
 - Uses `LLMLingua` (Microsoft Research, open source) or a cheap Gemini Flash call for compression
 - **Expected reduction: 70–80%** but adds one extra API call (may not save quota)
@@ -287,13 +322,12 @@ Send the full text to a cheap/fast LLM first, asking it to produce a "review dig
 > *Research keyword: "information extraction for structured summarization"*
 
 Instead of sending raw section text, extract structured key facts:
+
 - Abstract → `{objective, method, results, contribution}`
 - Methodology → `{dataset, model, baselines, metrics, training_details}`
 - Results → `{primary_metric, comparison_table, key_numbers}`
 - Format these as compact structured text blocks, not prose
 - **Expected reduction: 50–65%**, highly deterministic, no external dependencies
-
----
 
 **Requirements Mapped:**
 - OPT-06: Optimize text truncation strategy for LLM context window usage (existing)
@@ -315,3 +349,23 @@ Plans:
 - [x] Plan 2: Validation Harness — Score Drift & Token Reduction Metrics
 - [x] Plan 3: Pipeline Integration & Configurable Compression Modes
 
+---
+
+## Phase 11: Improve the frontend UI
+**Goal:** Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience of ResearchSense based on the specifications.
+**Depends on:** Phase 8 (Web Frontend Dashboard), Phase 10 (Pipeline integration and optimizations)
+
+**Requirements Mapped:**
+- UI-01: Redesign the UI dashboard widgets for an interactive and premium experience
+- UI-02: Enhance the styling with rich glassmorphism, responsive grids, and micro-animations
+- UI-03: Improve the layout hierarchy to prioritize key metrics like overall score and grade
+
+**Success Criteria:**
+1. Dashboard layout updated with rich glassmorphism styling and responsive grid elements
+2. Frontend dashboard displays verified/unverified citation summaries and detailed reference entries cleanly
+3. Interactive dashboard charts or gauges show the grade and status labels appropriately
+
+**Plans:** 1 plans
+
+Plans:
+- [/] Plan 1: Design and implement UI/UX improvements for the frontend dashboard
