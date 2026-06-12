@@ -132,8 +132,10 @@ async def analyze_paper(file: UploadFile = File(...)):
                 }
             )
 
-        # Detect sections using regex (now returns sections + confidence)
-        detection_result = section_detector.detect_sections(text)
+        # Detect sections — Tier 1 (keyword) with Tier 2 (LLM) fallback for non-standard papers
+        detection_result = section_detector.detect_sections(
+            text, llm_mapper=gemini_analyzer.map_headings
+        )
         sections = detection_result["sections"]
         detected_sections = detection_result["detected_sections"]
 

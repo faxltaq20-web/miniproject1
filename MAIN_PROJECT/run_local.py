@@ -77,9 +77,14 @@ def run_pipeline(pdf_path: str):
 
     # ── Step 2: Detect Sections ───────────────────────────────────────
     print("⏳ [2/5] Detecting paper sections...")
-    detection_result = section_detector.detect_sections(text)
+    detection_result = section_detector.detect_sections(
+        text, llm_mapper=gemini_analyzer.map_headings
+    )
     sections = detection_result["sections"]
     detected_sections = detection_result["detected_sections"]
+    active_tier = detection_result.get("tier", 1)
+    if active_tier == 2:
+        print("   ↳ Tier 2 (LLM heading mapper) was used for section detection.")
 
     found_count = len(detected_sections)
     print(f"   ✓ Found {found_count} sections:")

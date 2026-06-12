@@ -2,17 +2,19 @@ import re
 
 # Display names for the UI
 SECTION_DISPLAY_NAMES = {
-    "abstract": "Abstract",
+    "abstract":     "Abstract",
     "introduction": "Introduction",
     "related_work": "Related Work",
-    "methodology": "Methods",
-    "results": "Results",
-    "discussion": "Discussion",
-    "conclusion": "Conclusion",
-    "references": "References"
+    "methodology":  "Methods",
+    "results":      "Results",
+    "discussion":   "Discussion",
+    "conclusion":   "Conclusion",
+    "references":   "References"
 }
 
-# Keywords that map to each section (checked against cleaned heading text)
+# ── Tier 1: Fast keyword mapping ──────────────────────────────────────────────
+# Keywords that map to each section (checked against cleaned heading text).
+# Covers the vast majority of standard academic papers.
 SECTION_KEYWORDS = {
     "abstract":     ["abstract"],
     "introduction": ["introduction"],
@@ -29,8 +31,10 @@ SECTION_KEYWORDS = {
     "references":   ["references", "bibliography", "works cited"],
 }
 
+# Valid section keys accepted from LLM mapping (Tier 2)
+VALID_SECTION_KEYS = set(SECTION_DISPLAY_NAMES.keys()) | {"none"}
+
 # Headings that STOP the current section (e.g. appendix starts after references).
-# When one of these is detected as a heading, we stop appending to any section.
 STOP_KEYWORDS = {
     "appendix", "appendices",
     "checklist",
@@ -44,6 +48,8 @@ STOP_KEYWORDS = {
     "frequently asked questions",
 }
 
+
+# ─── Heading Utilities ────────────────────────────────────────────────────────
 
 def _clean_heading(line: str) -> str:
     """Strip markdown #, bold **, numbers, roman numerals, and whitespace to get pure heading text."""
@@ -89,44 +95,159 @@ def _is_heading_line(line: str) -> bool:
     return False
 
 
-def detect_sections(text: str) -> dict:
+# ─── Tier 2 Helpers ───────────────────────────────────────────────────────────
+
+def _extract_all_headings(text: str) -> list:
+    """
+    Extract candidate section headings from the paper text in order.
+    Returns a list of raw heading strings (up to 40 items).
+
+    Focuses on top-level headings: numbered sections (single digit prefix),
+    ALL CAPS, and markdown # headings. Sub-sections (3.1, 3.2) are excluded
+    to keep the heading list short and the LLM call cheap.
+    """
+    headings = []
+    seen = set()
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or len(stripped) > 90:
+            continue
+
+        is_candidate = False
+
+        # Markdown headings level 1-2 (# or ##) but not sub-sections (###)
+        if re.match(r'^#{1,2}\s+', stripped):
+            is_candidate = True
+
+        # ALL CAPS lines (pure section headings like "INTRODUCTION", "ABSTRACT")
+        elif (len(stripped) >= 3 and stripped.replace(' ', '').replace('&', '').isupper()
+              and not any(c.isdigit() for c in stripped)):
+            is_candidate = True
+
+        # Top-level numbered headings only: "1 ", "2 ", "3 " (NOT "3.1 ", "3.2 ")
+        elif re.match(r'^\d{1,2}\s+[A-Z]', stripped) and '.' not in stripped.split()[0]:
+            is_candidate = True
+
+        # Roman numeral headings: "I.", "II.", "III."
+        elif re.match(r'^[IVX]{1,5}\.\s+[A-Z]', stripped):
+            is_candidate = True
+
+        if is_candidate:
+            # Deduplicate (tables/figures can repeat headings)
+            norm = stripped.lower()[:50]
+            if norm not in seen:
+                seen.add(norm)
+                headings.append(stripped)
+
+        if len(headings) >= 40:
+            break
+
+    return headings
+
+
+def _apply_llm_mapping(lines: list, raw_heading_map: dict) -> dict:
+    """
+    Re-segment the paper text using Gemini's heading → section_key mapping.
+
+    raw_heading_map: {raw_heading_string: section_key}
+    e.g. {"3 Pre-Training": "methodology", "1 Introduction": "introduction"}
+
+    Logic:
+    - For each line, if it's a heading AND it's in the map → switch current section
+    - If it's a heading NOT in the map → sub-heading, continue current section
+    - Stop keywords still terminate accumulation
+    - "none" mapped sections stop accumulation (acknowledgements, etc.)
+
+    Returns: sections dict {section_key: accumulated_text}
+    """
+    # Build cleaned-heading → section_key lookup for fast matching
+    cleaned_map = {_clean_heading(h): key for h, key in raw_heading_map.items()
+                   if key in VALID_SECTION_KEYS}
+
+    sections = {k: "" for k in SECTION_DISPLAY_NAMES}
+    current_section = None
+
+    for line in lines:
+        if _is_heading_line(line):
+            clean = _clean_heading(line)
+
+            # Stop keywords always terminate
+            if any(stop in clean for stop in STOP_KEYWORDS):
+                current_section = None
+                continue
+
+            # Appendix-letter headings (single letter prefix)
+            if re.match(r'^[a-z](\.\d+)*\s', clean):
+                current_section = None
+                continue
+
+            # Check LLM mapping first
+            mapped_key = cleaned_map.get(clean)
+            if mapped_key is not None:
+                if mapped_key == "none":
+                    current_section = None
+                else:
+                    current_section = mapped_key
+                    sections[current_section] += line + "\n"
+                continue
+            # else: unknown heading = sub-heading → fall through to append
+
+        if current_section:
+            sections[current_section] += line + "\n"
+
+    # Strip trailing whitespace
+    for k in sections:
+        sections[k] = sections[k].strip()
+
+    return sections
+
+
+# ─── Main Entry Point ─────────────────────────────────────────────────────────
+
+def detect_sections(text: str, llm_mapper=None) -> dict:
     """
     Segment text (plain or markdown) into standard academic sections.
 
-    Works with both PyMuPDF plain text and PyMuPDF4LLM markdown output.
-    PyMuPDF4LLM headings like '## **1 Introduction**' are handled.
+    TWO-TIER DETECTION:
+      Tier 1 (always): Fast keyword matching — zero API calls.
+                       Works for ~80% of standard academic papers.
+      Tier 2 (fallback): LLM semantic heading mapping — triggered only when
+                         Tier 1 detects fewer than 4 sections.
+                         Sends only the heading list (~50 tokens) to Gemini.
+
+    Args:
+        text: Full paper text (plain text or PyMuPDF4LLM markdown).
+        llm_mapper: Optional callable — gemini_analyzer.map_headings(headings) -> dict.
+                    If None, Tier 2 is disabled (Tier 1 only).
 
     Returns:
         {
             "sections": { "abstract": "...", "introduction": "...", ... },
-            "detected_sections": { "Abstract": 96, "Introduction": 94, ... }
+            "detected_sections": { "Abstract": 96, "Introduction": 94, ... },
+            "tier": 1 or 2   # which tier produced the final result
         }
     """
     lines = text.splitlines()
 
-    # Initialize output
+    # ── Tier 1: Keyword matching ──────────────────────────────────────────────
     sections = {k: "" for k in SECTION_DISPLAY_NAMES}
-
     current_section = None
     matched_via_markdown = {}
 
     for line in lines:
         is_md = line.strip().startswith("#")
 
-        # Only try to match headings, not body text
         if _is_heading_line(line):
             clean = _clean_heading(line)
 
-            # Check stop keywords first — these terminate all section accumulation
-            # (e.g. appendix headings, acknowledgements, checklist after references)
+            # Stop keywords terminate accumulation
             if any(stop in clean for stop in STOP_KEYWORDS):
                 current_section = None
                 continue
 
-            # Also stop on standalone appendix-letter headings like
-            # "## A Frequently Asked Questions" or "## A.1 ..."
-            # (single uppercase letter, possibly followed by digits/dots)
-            if re.match(r'^[a-z](\.[\d]+)*\s', clean):
+            # Appendix-letter headings
+            if re.match(r'^[a-z](\.\d+)*\s', clean):
                 current_section = None
                 continue
 
@@ -143,23 +264,18 @@ def detect_sections(text: str) -> dict:
                 sections[current_section] += line + "\n"
                 continue
 
-        # Append to current section
         if current_section:
             sections[current_section] += line + "\n"
 
-    # Strip trailing whitespace
     for k in sections:
         sections[k] = sections[k].strip()
 
-    # Fallback: if few sections detected, scan for any known heading keyword
-    # anywhere in the text. This catches papers where PyMuPDF merges headings
-    # with body text or uses unusual formatting.
+    # Fallback scan: if few sections detected, scan text for keyword anywhere
     detected_count = sum(1 for v in sections.values() if v.strip())
     if detected_count <= 5:
         for section_name, keywords in SECTION_KEYWORDS.items():
             if sections[section_name].strip():
-                continue  # already detected
-            # Search for keyword as a standalone word (case-insensitive)
+                continue
             for kw in keywords:
                 pattern = re.compile(
                     rf'(?:^|\n)\s*(?:\d+\.?\s*)?{re.escape(kw)}\s*[\n\-\—\:\.]',
@@ -167,10 +283,8 @@ def detect_sections(text: str) -> dict:
                 )
                 match = pattern.search(text)
                 if match:
-                    # Extract ~2000 chars after the heading as section content
                     start = match.end()
                     end = min(start + 2000, len(text))
-                    # Stop at next known heading or end of text
                     for other_kw_list in SECTION_KEYWORDS.values():
                         for other_kw in other_kw_list:
                             next_match = re.compile(
@@ -182,7 +296,50 @@ def detect_sections(text: str) -> dict:
                     sections[section_name] = text[match.start():end].strip()
                     break
 
-    # Calculate confidence scores
+    tier1_count = sum(1 for v in sections.values() if v.strip())
+    active_tier = 1
+
+    # ── Tier 2: LLM semantic mapping (only when Tier 1 is sparse) ────────────
+    if tier1_count < 4 and llm_mapper is not None:
+        print(f"   [SectionDetect] Tier 1 found only {tier1_count} section(s). "
+              "Running Tier 2 (LLM heading mapper)...", flush=True)
+
+        headings = _extract_all_headings(text)
+        if headings:
+            try:
+                raw_map = llm_mapper(headings)   # → {raw_heading: section_key}
+            except Exception as e:
+                print(f"   [SectionDetect] Tier 2 mapper failed ({e}) — "
+                      "keeping Tier 1 result.", flush=True)
+                raw_map = {}
+
+            if raw_map:
+                llm_sections = _apply_llm_mapping(lines, raw_map)
+                # Merge: fill any Tier 1 gaps with LLM content
+                merged = False
+                for key in SECTION_DISPLAY_NAMES:
+                    if not sections[key].strip() and llm_sections[key].strip():
+                        sections[key] = llm_sections[key]
+                        merged = True
+
+                # If LLM produced substantially more content, use it as base
+                llm_count = sum(1 for v in llm_sections.values() if v.strip())
+                if llm_count > tier1_count:
+                    # Override sections that were empty in Tier 1
+                    for key in SECTION_DISPLAY_NAMES:
+                        if llm_sections[key].strip():
+                            sections[key] = llm_sections[key]
+                    active_tier = 2
+
+                if merged or active_tier == 2:
+                    print(f"   [SectionDetect] Tier 2 complete — "
+                          f"now {sum(1 for v in sections.values() if v.strip())} section(s) detected.",
+                          flush=True)
+            else:
+                print("   [SectionDetect] Tier 2 returned empty map — "
+                      "keeping Tier 1 result.", flush=True)
+
+    # ── Confidence scores ─────────────────────────────────────────────────────
     detected_sections = {}
     for section_name, content in sections.items():
         if not content.strip():
@@ -190,8 +347,12 @@ def detect_sections(text: str) -> dict:
 
         display_name = SECTION_DISPLAY_NAMES.get(section_name, section_name.title())
 
-        # Base: markdown heading = 85, plain text = 70
-        confidence = 85 if matched_via_markdown.get(section_name) else 70
+        # Base confidence
+        if active_tier == 2:
+            # LLM-mapped sections get a fixed high base — the LLM understood the heading
+            confidence = 88
+        else:
+            confidence = 85 if matched_via_markdown.get(section_name) else 70
 
         # Content length bonus
         content_lines = len(content.splitlines())
@@ -204,7 +365,7 @@ def detect_sections(text: str) -> dict:
         else:
             confidence += 2
 
-        # Deterministic variation
+        # Deterministic variation (avoids identical scores)
         hash_val = sum(ord(c) for c in content[:200]) % 6
         confidence += hash_val
 
@@ -213,5 +374,6 @@ def detect_sections(text: str) -> dict:
 
     return {
         "sections": sections,
-        "detected_sections": detected_sections
+        "detected_sections": detected_sections,
+        "tier": active_tier,
     }

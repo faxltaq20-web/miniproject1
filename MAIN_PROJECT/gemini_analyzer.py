@@ -108,10 +108,33 @@ RESPONSE_SCHEMA = {
                   "methodology_rigor", "evidence_claims"],
 }
 
+# ─── Heading Map Schema (Tier 2 dynamic section detection) ───────────────────
+# Used by map_headings() — maps each raw heading string to a section key.
+# Array-of-objects format allows dynamic heading strings as values (not keys),
+# which is the only way to use structured output with variable heading names.
+HEADING_MAP_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "mappings": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "heading": {"type": "STRING"},
+                    "section": {"type": "STRING"},
+                },
+                "required": ["heading", "section"],
+            },
+        }
+    },
+    "required": ["mappings"],
+}
+
 # ─── Area 3: System Instruction (static prompt cached by Gemini) ─────────────
 SYSTEM_PROMPT = """You are an experienced academic paper reviewer. Evaluate research papers across 4 dimensions.
-For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 2), and a list of actionable suggestions (minimum 2).
+For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 1), and a list of actionable suggestions (minimum 1).
 Keep issues and suggestions concise (maximum 1-2 sentences each) and focus on specific, high-impact improvements.
+If a dimension is genuinely excellent, you may list a single minor issue and state it is a minor concern.
 
 SCORING RUBRIC — use this to assign consistent scores:
   9-10: Exceptional — publishable quality, no significant issues found in the content
@@ -121,8 +144,13 @@ SCORING RUBRIC — use this to assign consistent scores:
   1-2:  Poor — fundamental structural or methodological problems
   0:    Section missing or completely inadequate
 
+IMPORTANT ABOUT STRUCTURE: Some high-quality papers (especially industry research) use
+custom section names instead of standard headings. Do NOT penalize a paper for using
+"Pre-Training" instead of "Methodology", or "Empirical Evaluation" instead of "Results".
+Judge whether the CONTENT is present and rigorous, not whether the heading matches a template.
+
 DIMENSION 1 — Structure & Sections:
-- Are standard academic sections present? (Abstract, Introduction, Related Work, Methodology, Results, Conclusion, References)
+- Is content for all major academic components present (even under non-standard headings)?
 - Is there logical flow and transitions between sections?
 - Is section ordering and balance reasonable?
 
@@ -148,11 +176,33 @@ IMPORTANT: The paper content may be an excerpt — sections may be truncated for
 
 Return a JSON object with exactly this structure:
 {
-  "structure_sections": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
-  "clarity_writing": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
-  "methodology_rigor": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]},
-  "evidence_claims": {"score": <0-10>, "issues": ["issue1", "issue2"], "suggestions": ["fix1", "fix2"]}
+  "structure_sections": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
+  "clarity_writing": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
+  "methodology_rigor": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
+  "evidence_claims": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]}
 }"""
+
+# ─── Heading Map System Instruction (Tier 2 section detection) ────────────────
+HEADING_MAP_SYSTEM = """You map research paper section headings to standard academic section names.
+
+Valid section keys (use exactly these strings):
+  abstract     — synopsis, overview, summary at START of paper, preface
+  introduction — motivation, background, problem statement
+  related_work — literature review, prior work, background (when a separate section)
+  methodology  — methods, approach, architecture, system design, training procedure,
+                 pre-training, post-training, framework, model, implementation, pipeline
+  results      — experiments, evaluation, benchmarks, performance, findings, empirical study
+  discussion   — analysis, ablation study, limitations, qualitative study
+  conclusion   — concluding remarks, future work, summary at END of paper
+  references   — bibliography, works cited
+  none         — acknowledgements, appendix, author info, ethics, table of contents,
+                 checklist, broader impact, reproducibility
+
+Critical rules:
+- Headings are in ORDER as they appear in the paper — use position to resolve ambiguity.
+- "Summary" at position 1-2 = abstract. "Summary" at a late position = conclusion.
+- Industry/lab papers often use non-standard names: map them to the closest standard key.
+- Return EVERY heading in the mappings array — do not skip any."""
 
 
 # ─── Area 5: Result Caching ───────────────────────────────────────────────────
@@ -220,7 +270,8 @@ def _parse_retry_delay(err_str: str) -> float:
 def _call_single_key(key_name: str, client, prompt: str,
                      max_retries: int = 3, initial_delay: float = 5.0,
                      use_structured_output: bool = False,
-                     system_instruction: str = None) -> str:
+                     system_instruction: str = None,
+                     response_schema: dict = None) -> str:
     """
     Call Gemini with one specific key. Retries on transient errors.
     Returns raw text on success. Raises on persistent failure.
@@ -241,7 +292,9 @@ def _call_single_key(key_name: str, client, prompt: str,
             }
             if use_structured_output:
                 config_kwargs["response_mime_type"] = "application/json"
-                config_kwargs["response_schema"] = RESPONSE_SCHEMA
+                config_kwargs["response_schema"] = (
+                    response_schema if response_schema is not None else RESPONSE_SCHEMA
+                )
             if system_instruction:
                 config_kwargs["system_instruction"] = system_instruction
 
@@ -274,7 +327,8 @@ def _call_single_key(key_name: str, client, prompt: str,
 
 
 def _call_llm_with_failover(prompt: str, use_structured_output: bool = False,
-                            system_instruction: str = None) -> str:
+                            system_instruction: str = None,
+                            response_schema: dict = None) -> str:
     """
     Try each Gemini key in order. If one key hits 429, rotate to next.
     Returns raw text on first success.
@@ -284,7 +338,8 @@ def _call_llm_with_failover(prompt: str, use_structured_output: bool = False,
         try:
             return _call_single_key(key_name, client, prompt,
                                     use_structured_output=use_structured_output,
-                                    system_instruction=system_instruction)
+                                    system_instruction=system_instruction,
+                                    response_schema=response_schema)
         except Exception as e:
             last_error = e
             err_str = str(e)
@@ -480,6 +535,73 @@ def analyze_paper(sections: dict) -> dict:
         _save_cache(_cache_key, result)
 
     return result
+
+
+# ─── Tier 2: Heading → Section Key Mapping ──────────────────────────────────
+
+def map_headings(headings: list) -> dict:
+    """
+    Tier 2 dynamic section detection: semantically map paper headings to
+    standard section keys using a small, targeted Gemini call.
+
+    Sends ONLY the heading list (typically 50-150 tokens), not the full paper.
+    Used by section_detector.detect_sections() when Tier 1 finds < 4 sections.
+
+    Args:
+        headings: List of raw heading strings in document order.
+                  e.g. ["1 Introduction", "3 Pre-Training", "4 Post-Training"]
+
+    Returns:
+        dict mapping raw heading string → section key string
+        e.g. {"3 Pre-Training": "methodology", "1 Introduction": "introduction"}
+        Returns {} on any failure so Tier 1 result is preserved.
+    """
+    if not headings:
+        return {}
+
+    # Cache by hash of the ordered heading list
+    cache_key = "hmap_" + hashlib.sha256("|".join(headings).encode("utf-8")).hexdigest()[:12]
+    cached = _load_cache(cache_key)
+    if cached is not None:
+        print("   [HeadingMap] Cache HIT — returning cached heading mapping.", flush=True)
+        return cached
+
+    # Build compact numbered prompt — ordering is crucial for positional disambiguation
+    numbered = "\n".join(f"{i + 1}. {h}" for i, h in enumerate(headings))
+    prompt = f"Map these headings from a research paper (in document order):\n{numbered}"
+
+    print(f"   [HeadingMap] Calling Gemini to map {len(headings)} heading(s)...", flush=True)
+    try:
+        raw_text = _call_llm_with_failover(
+            prompt,
+            use_structured_output=True,
+            system_instruction=HEADING_MAP_SYSTEM,
+            response_schema=HEADING_MAP_SCHEMA,
+        )
+        data = json.loads(raw_text)
+        mappings = data.get("mappings", [])
+
+        result = {
+            item["heading"]: item["section"]
+            for item in mappings
+            if isinstance(item, dict)
+            and "heading" in item
+            and "section" in item
+            and item["section"] in {
+                "abstract", "introduction", "related_work", "methodology",
+                "results", "discussion", "conclusion", "references", "none"
+            }
+        }
+
+        print(f"   [HeadingMap] Mapped {len(result)}/{len(headings)} heading(s) successfully.",
+              flush=True)
+        _save_cache(cache_key, result)
+        return result
+
+    except Exception as e:
+        print(f"   [HeadingMap] WARNING: heading mapping failed ({e}) — "
+              "Tier 1 result will be used.", file=sys.stderr)
+        return {}
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────
