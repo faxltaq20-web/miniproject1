@@ -134,45 +134,57 @@ HEADING_MAP_SCHEMA = {
 SYSTEM_PROMPT = """You are an experienced academic paper reviewer. Evaluate research papers across 4 dimensions.
 For EACH dimension, provide an integer score (0-10), a list of specific issues found (minimum 1), and a list of actionable suggestions (minimum 1).
 Keep issues and suggestions concise (maximum 1-2 sentences each) and focus on specific, high-impact improvements.
-If a dimension is genuinely excellent, you may list a single minor issue and state it is a minor concern.
+If a dimension is genuinely excellent, state it is excellent and note only a minor concern if one exists.
 
 SCORING RUBRIC — use this to assign consistent scores:
-  9-10: Exceptional — publishable quality, no significant issues found in the content
+  9-10: Exceptional — publishable quality, no significant issues found
   7-8:  Good — minor issues that don't undermine the work's contribution
   5-6:  Adequate — noticeable weaknesses but the core contribution is sound
   3-4:  Weak — significant gaps that undermine the paper's credibility
   1-2:  Poor — fundamental structural or methodological problems
   0:    Section missing or completely inadequate
 
-IMPORTANT ABOUT STRUCTURE: Some high-quality papers (especially industry research) use
-custom section names instead of standard headings. Do NOT penalize a paper for using
-"Pre-Training" instead of "Methodology", or "Empirical Evaluation" instead of "Results".
-Judge whether the CONTENT is present and rigorous, not whether the heading matches a template.
+IMPORTANT — STRUCTURE: High-quality papers (especially industry/lab papers) often use
+custom section names. Do NOT penalize "Pre-Training" instead of "Methodology" or
+"Empirical Evaluation" instead of "Results". Judge CONTENT presence and rigor,
+not heading name conformance.
+
+IMPORTANT — DOMAIN: Some papers are theoretical (math proofs, no datasets) or systems
+papers. Do not penalize a theoretical paper for lacking experimental baselines, or a
+survey paper for lacking a novel methodology. Calibrate expectations to the paper type.
 
 DIMENSION 1 — Structure & Sections:
 - Is content for all major academic components present (even under non-standard headings)?
+- Are the paper's contributions explicitly and clearly stated? (Look for contribution lists,
+  "we propose", "we introduce", "our contributions are" in abstract/introduction.)
 - Is there logical flow and transitions between sections?
-- Is section ordering and balance reasonable?
+- Is section ordering and balance appropriate for the paper type?
 
 DIMENSION 2 — Clarity & Writing:
 - Grammar correctness and language quality
 - Sentence structure and readability
 - Vocabulary appropriateness for academic writing
-- Coherence and flow within paragraphs
+- Coherence and flow within and between paragraphs
+- Is the abstract a faithful, complete summary of the paper's findings?
 
 DIMENSION 3 — Methodology Rigor:
-- Is the experimental design described clearly?
-- Are datasets and evaluation metrics specified?
-- Are there baseline comparisons?
-- Is there sufficient detail for understanding the approach?
+- Is the experimental design described clearly and in reproducible detail?
+- Are datasets named and evaluation metrics specified?
+- Are there meaningful baseline comparisons against prior work?
+- Are hyperparameters, training details, or algorithmic steps reported?
+- Are results reported with statistical rigour? (error bars, standard deviation,
+  multiple runs, confidence intervals, or significance tests where appropriate)
+- Is there a clear distinction between validation and test set performance?
 
 DIMENSION 4 — Evidence & Claims:
-- Are claims supported by evidence and data in the text?
-- Do conclusions logically follow from the results presented?
-- Are there unsupported or overgeneralized claims?
-- Is there consistency between abstract claims and findings?
+- Are all major claims supported by evidence, data, or citations in the text?
+- Do the conclusions logically follow from the results presented?
+- Are there unsupported, vague, or overgeneralized claims?
+- Is there consistency between what the abstract promises and what the results deliver?
+- Do figure/table captions (if provided) align with the claims made in the text?
 
-IMPORTANT: The paper content may be an excerpt — sections may be truncated for length. Evaluate based on what IS present, not what may be cut off. Do NOT penalize truncation artifacts.
+IMPORTANT: The paper content may be an excerpt — sections may be truncated for length.
+Evaluate based on what IS present. Do NOT penalize truncation artifacts.
 
 Return a JSON object with exactly this structure:
 {
@@ -181,6 +193,17 @@ Return a JSON object with exactly this structure:
   "methodology_rigor": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
   "evidence_claims": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]}
 }"""
+
+# ─── Figure / Table Caption Extractor ────────────────────────────────────────
+# Extracts captions like "Figure 3: ..." or "Table 2. ..." from section text.
+# These are injected into the Gemini prompt so it can cross-check visual claims.
+CAPTION_RE = re.compile(
+    r'(?:^|\n)[ \t]*(?:\*{0,2})'
+    r'(?:Figure|Fig\.?|Table|Tbl\.|Scheme|Chart)'
+    r'[ \t]+\d+[\.:)]?(?:\*{0,2})[ \t]*'
+    r'(.{15,300})',
+    re.IGNORECASE | re.MULTILINE
+)
 
 # ─── Heading Map System Instruction (Tier 2 section detection) ────────────────
 HEADING_MAP_SYSTEM = """You map research paper section headings to standard academic section names.
@@ -404,7 +427,10 @@ def analyze_paper(sections: dict) -> dict:
     # ─── Phase 10: Text Compression (Approach A) ─────────────────────────────
     # Pre-compress sections before assembly to reduce prompt token count.
     # Controlled by COMPRESSION_MODE env var: off | light (default) | aggressive
+    # NOTE: methodology is always protected from compression — technical evidence
+    # sentences must not be stripped as they are critical for scoring accuracy.
     _compression_mode = os.getenv("COMPRESSION_MODE", "light").strip().lower()
+    _raw_methodology = sections.get("methodology", "")  # save before compression
     if _COMPRESSOR_AVAILABLE and _compression_mode != "off":
         try:
             _compressed = _compress_sections(sections, mode=_compression_mode)
@@ -416,9 +442,37 @@ def analyze_paper(sections: dict) -> dict:
             print(f"   [Compress] mode={_compression_mode} | "
                   f"{_orig:,} → {_comp:,} chars | −{_pct}% reduction",
                   flush=True)
+            # Restore raw methodology — never compress technical evidence
+            if _raw_methodology:
+                sections["methodology"] = _raw_methodology
+                print("   [Compress] Methodology section shielded from compression.",
+                      flush=True)
         except Exception as _ce:
             print(f"   [Compress] WARNING: compression failed ({_ce}) — continuing uncompressed.",
                   file=sys.stderr)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ─── Extract figure/table captions from all sections ─────────────────────
+    # Captions carry the densest evidence claims (e.g. "Figure 3: accuracy 94.2%").
+    # Injected as a dedicated [CAPTIONS] block so Gemini can cross-check them.
+    _all_captions = []
+    for _sec_text in sections.values():
+        if isinstance(_sec_text, str):
+            for _m in CAPTION_RE.finditer(_sec_text):
+                _cap = _m.group(1).strip().rstrip('.')
+                if len(_cap) >= 15:
+                    _all_captions.append(_cap)
+    # Deduplicate while preserving order
+    _seen_caps = set()
+    _unique_captions = []
+    for _cap in _all_captions:
+        _norm = _cap.lower()[:60]
+        if _norm not in _seen_caps:
+            _seen_caps.add(_norm)
+            _unique_captions.append(_cap)
+    if _unique_captions:
+        print(f"   [Captions] Extracted {len(_unique_captions)} figure/table caption(s).",
+              flush=True)
     # ─────────────────────────────────────────────────────────────────────────
 
     def _smart_truncate(text: str, limit: int) -> str:
@@ -450,12 +504,12 @@ def analyze_paper(sections: dict) -> dict:
         ("abstract",     "ABSTRACT",         5000),
         ("introduction", "INTRODUCTION",    30000),
         ("related_work", "RELATED WORK",    15000),
-        ("methodology",  "METHODOLOGY",     40000),
-        ("results",      "RESULTS",         40000),
+        ("methodology",  "METHODOLOGY",     60000),  # raised — technical papers need full methodology
+        ("results",      "RESULTS",         60000),  # raised — full tables + evaluation sections
         ("discussion",   "DISCUSSION",      30000),
         ("conclusion",   "CONCLUSION",      10000),
     ]
-    MAX_TOTAL = 150000  # Full paper fits; Gemini 2.5 Flash handles it
+    MAX_TOTAL = 400000  # Raised from 150K — Gemini 2.5 Flash 1M token window handles it
 
     text_parts = []
     total_chars = 0
@@ -483,6 +537,12 @@ def analyze_paper(sections: dict) -> dict:
                 "methodology_rigor": 0.0, "evidence_claims": 0.0, "citations": 0.0,
             }
         }
+
+    # ── Append captions block to assembled text ─────────────────────────
+    if _unique_captions:
+        captions_block = "\n".join(f"- {c}" for c in _unique_captions[:25])
+        assembled_text = assembled_text + f"\n\n[FIGURE & TABLE CAPTIONS]\n{captions_block}"
+        assembled_text = assembled_text[:MAX_TOTAL]  # re-apply cap after appending
 
     # ── Area 3: System Instruction + Paper Content (separated) ────────────
     # System prompt is cached by Gemini across calls (warmer model).

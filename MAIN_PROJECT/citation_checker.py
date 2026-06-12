@@ -31,6 +31,14 @@ AUTHOR_YEAR_PATTERN = re.compile(
 # Area 7: Year extraction pattern
 YEAR_PATTERN = re.compile(r'\b(19\d{2}|20\d{2})\b')
 
+# ArXiv reference patterns — covers all common citation styles:
+#   arXiv:2407.21783   arXiv preprint arXiv:2407.21783   arxiv.org/abs/2407.21783
+ARXIV_PATTERN = re.compile(
+    r'(?:arXiv\s*(?:preprint\s*arXiv)?\s*:|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})'
+    r'|\barXiv:(\d{4}\.\d{4,5})\b',
+    re.IGNORECASE
+)
+
 CROSSREF_BASE = "https://api.crossref.org/works/{doi}"
 CROSSREF_SEARCH = "https://api.crossref.org/works"
 HEADERS = {
@@ -77,6 +85,93 @@ def _extract_author_year_refs(text: str) -> list:
     """
     matches = AUTHOR_YEAR_PATTERN.findall(text)
     return [(author.strip(), year) for author, year in matches]
+
+
+def _extract_arxiv_ids(references_text: str) -> list:
+    """
+    Extract ArXiv paper IDs from the references section.
+    Returns a deduplicated list of ID strings like ["2407.21783", "1706.03762"].
+    """
+    ids = []
+    seen = set()
+    for m in ARXIV_PATTERN.finditer(references_text):
+        arxiv_id = m.group(1) or m.group(2)
+        if arxiv_id and arxiv_id not in seen:
+            seen.add(arxiv_id)
+            ids.append(arxiv_id)
+    return ids
+
+
+def _verify_arxiv_id(arxiv_id: str) -> str:
+    """
+    Verify an ArXiv paper ID exists via the public ArXiv Atom API.
+    Free, no auth, no rate limit for reasonable use.
+
+    Returns:
+        "verified"    — paper entry found in ArXiv
+        "not_found"   — no entry returned for this ID
+        "unreachable" — timeout or connection error
+    """
+    url = f"https://export.arxiv.org/api/query?id_list={arxiv_id}&max_results=1"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code != 200:
+            return "unreachable"
+        # ArXiv API always returns HTTP 200. Check for an actual entry tag.
+        return "verified" if "<entry>" in response.text else "not_found"
+    except requests.RequestException:
+        return "unreachable"
+
+
+def _score_citation_recency(ref_lines: list) -> dict:
+    """
+    Score how current the reference list is based on publication years.
+    Recent citations (≤3 years old) signal the authors surveyed recent work.
+
+    Returns:
+        {"recency_score": float, "recent_ratio": float | None,
+         "recency_note": str, "ref_years": list[int]}
+    """
+    import datetime
+    current_year = datetime.datetime.now().year
+
+    years = []
+    for line in ref_lines:
+        m = YEAR_PATTERN.search(line)
+        if m:
+            y = int(m.group(1))
+            if 1950 < y <= current_year:
+                years.append(y)
+
+    if not years:
+        return {
+            "recency_score": 7.0,
+            "recent_ratio": None,
+            "recency_note": "Could not extract publication years from references.",
+            "ref_years": [],
+        }
+
+    recent = sum(1 for y in years if y >= current_year - 3)
+    ratio = round(recent / len(years), 2)
+
+    if ratio >= 0.35:
+        score, note = 10.0, f"{recent}/{len(years)} refs from last 3 years — excellent currency."
+    elif ratio >= 0.20:
+        score, note = 8.0,  f"{recent}/{len(years)} refs from last 3 years — good currency."
+    elif ratio >= 0.08:
+        score, note = 6.0,  f"{recent}/{len(years)} refs from last 3 years — moderate currency."
+    else:
+        score, note = 4.0,  (
+            f"Only {recent}/{len(years)} refs from last 3 years — "
+            "literature survey may be outdated."
+        )
+
+    return {
+        "recency_score": score,
+        "recent_ratio": ratio,
+        "recency_note": note,
+        "ref_years": sorted(set(years)),
+    }
 
 
 def _detect_duplicates(references_text: str) -> list:
@@ -430,12 +525,39 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             issues.append(f"{len(duplicate_flags)} duplicate reference(s) detected.")
             ref_score = max(ref_score - 1.0, 0.0)
 
+        # ArXiv verification (free fallback for preprint-heavy reference lists)
+        arxiv_ids = _extract_arxiv_ids(references_text)
+        arxiv_verified = 0
+        if arxiv_ids:
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                arxiv_futures = {executor.submit(_verify_arxiv_id, aid): aid
+                                 for aid in arxiv_ids[:15]}  # cap at 15
+                for future in as_completed(arxiv_futures):
+                    try:
+                        if future.result() == "verified":
+                            arxiv_verified += 1
+                    except Exception:
+                        pass
+            issues.append(
+                f"{arxiv_verified}/{len(arxiv_ids)} ArXiv reference(s) verified."
+            )
+            # Boost score if ArXiv refs verify well
+            if arxiv_ids and arxiv_verified / len(arxiv_ids) >= 0.7:
+                ref_score = min(ref_score + 1.0, 10.0)
+
+        # Citation recency scoring
+        recency = _score_citation_recency(ref_lines)
+        issues.append(recency["recency_note"])
+        # Blend: 80% DOI/title score + 20% recency score
+        ref_score = round(0.80 * ref_score + 0.20 * recency["recency_score"], 1)
+
         return {
             "score": ref_score,
             "total_refs": total_refs,
             "verified": verified_count,
             "not_found": not_found_count,
             "unreachable": unreachable_count,
+            "arxiv_verified": arxiv_verified,
             "flagged_dois": [],
             "flagged_items": duplicate_flags,
             "issues": issues,
@@ -443,6 +565,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
                 "Include DOIs for all cited works to improve citation verifiability.",
                 "Papers with verifiable DOIs receive higher citation scores."
             ],
+            "recency": recency,
         }
 
     # Validate each DOI in parallel (5 concurrent workers)
@@ -535,6 +658,25 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     duplicate_flags = _detect_duplicates(references_text)
     flagged_items.extend(duplicate_flags)
 
+    # ── ArXiv verification ────────────────────────────────────────────────────
+    # ML/AI papers heavily use ArXiv preprints (no DOI). Verify them separately
+    # so they aren't penalised as "not_found" in the DOI score.
+    arxiv_ids = _extract_arxiv_ids(references_text)
+    arxiv_verified = 0
+    if arxiv_ids:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            arxiv_futures = {executor.submit(_verify_arxiv_id, aid): aid
+                             for aid in arxiv_ids[:15]}  # cap at 15 IDs
+            for future in as_completed(arxiv_futures):
+                try:
+                    if future.result() == "verified":
+                        arxiv_verified += 1
+                except Exception:
+                    pass
+
+    # ── Citation recency ──────────────────────────────────────────────────────
+    recency = _score_citation_recency(ref_lines)
+
     # All DOIs unreachable — neutral fallback score
     if unreachable_count == len(dois):
         return {
@@ -543,16 +685,29 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             "verified": 0,
             "not_found": 0,
             "unreachable": unreachable_count,
+            "arxiv_verified": arxiv_verified,
             "flagged_dois": [],
             "flagged_items": [],
+            "recency": recency,
             "issues": ["Citation verification throttled — all DOIs unreachable. Neutral score applied."],
             "suggestions": ["Retry the analysis when API demand is lower."],
         }
 
     # Fair score: exclude unreachable from calculation
-    # Score = verified / (verified + not_found) * 10
+    # Base score = verified / (verified + not_found) * 10
+    # Blended with recency: 80% DOI score + 20% recency score
     scorable = verified_count + not_found_count
-    score = round((verified_count / scorable) * 10, 1) if scorable > 0 else 7.0
+    doi_score = round((verified_count / scorable) * 10, 1) if scorable > 0 else 7.0
+
+    # ArXiv boost: if ArXiv refs verify well, lift the score slightly
+    if arxiv_ids:
+        arxiv_ratio = arxiv_verified / len(arxiv_ids)
+        if arxiv_ratio >= 0.7:
+            doi_score = min(doi_score + 1.5, 10.0)
+        elif arxiv_ratio >= 0.4:
+            doi_score = min(doi_score + 0.75, 10.0)
+
+    score = round(0.80 * doi_score + 0.20 * recency["recency_score"], 1)
 
     # Build human-readable issues and suggestions
     issues = []
@@ -565,6 +720,10 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         )
         suggestions.append(
             "Check flagged DOIs for typos or confirm they are published in indexed journals."
+        )
+    if arxiv_ids:
+        issues.append(
+            f"{arxiv_verified}/{len(arxiv_ids)} ArXiv preprint reference(s) verified."
         )
     if duplicate_flags:
         issues.append(
@@ -580,7 +739,8 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         suggestions.append(
             "Retry the analysis to attempt validation of unreachable DOIs."
         )
-    if not issues:
+    issues.append(recency["recency_note"])
+    if not suggestions:
         issues.append(f"All {len(dois)} DOI(s) verified successfully.")
         suggestions.append("No citation issues found.")
 
@@ -590,8 +750,10 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         "verified": verified_count,
         "not_found": not_found_count,
         "unreachable": unreachable_count,
+        "arxiv_verified": arxiv_verified,
         "flagged_dois": flagged_dois,
         "flagged_items": flagged_items,
+        "recency": recency,
         "issues": issues,
         "suggestions": suggestions,
     }
