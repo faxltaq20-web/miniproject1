@@ -330,7 +330,7 @@ class TestReductionRegression:
         Regression guard: compression must achieve ≥20% reduction on realistic
         academic text with citations, boilerplate, URLs, and duplicates.
         """
-        sections = {"methodology": REALISTIC_SECTION}
+        sections = {"introduction": REALISTIC_SECTION}
         result = compress_sections(sections, mode="light")
         stats = result["_compression_stats"]
         reduction = stats["reduction_pct"]
@@ -352,7 +352,7 @@ class TestReductionRegression:
 
     def test_aggressive_mode_reduces_more_than_light(self):
         """Aggressive mode must produce equal or shorter output than light mode."""
-        sections = {"methodology": REALISTIC_SECTION}
+        sections = {"introduction": REALISTIC_SECTION}
         light_result = compress_sections(sections, mode="light")
         agg_result = compress_sections(sections, mode="aggressive")
         light_chars = light_result["_compression_stats"]["total_compressed_chars"]

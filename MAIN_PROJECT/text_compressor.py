@@ -40,8 +40,6 @@ if sys.platform == "win32":
 # Sentence-level patterns. Each matches a redundant academic filler clause.
 # Only the MATCHED PHRASE + trailing comma is removed — the rest of the
 # sentence (which may contain result numbers or factual content) is kept.
-# This prevents stripping "our model outperforms by 3.2%" when the sentence
-# starts with "As shown in Table 1, our model outperforms by 3.2%".
 BOILERPLATE_PATTERNS = [
     # Paper structure forward-references
     r"[Ii]n this (paper|work|study|section|article),?\s+we\s+\w+",
@@ -72,14 +70,41 @@ BOILERPLATE_PATTERNS = [
     r"\s+(interest|demand|need|trend|focus)\s+in",
     r"[Tt]he (rapid|growing|recent|increasing)\s+\w+ of\s+\w+ has",
     r"[Ii]t is (well[- ]known|widely accepted|generally agreed|commonly known) that",
-    # Figure/table callout references (keep content, remove the "see X" part)
+    # Figure/table callout references (safe to strip in intro — NOT in results/discussion)
     r"[Ss]ee (Figure|Fig\.|Table|Appendix|Section)\s+\w+",
-    r"[Aa]s (shown|illustrated|depicted|presented|summarized|displayed|plotted)"
-    r"\s+in\s+(Figure|Fig\.|Table|Appendix)\s+\w+",
     r"[Rr]efer(ring)?\s+to\s+(Figure|Fig\.|Table|Appendix)\s+\w+",
-    r"[Ss]hown in\s+(Figure|Fig\.|Table|Appendix)\s+\w+",
     r"\(see\s+(Figure|Fig\.|Table|Appendix)\s+\w+\)",
 ]
+
+# ── Evidence-pointer patterns — NEVER stripped from results/discussion ─────────
+# These link claims to quantitative evidence. Removing them makes results text
+# incoherent and prevents Gemini from understanding what supports what.
+EVIDENCE_POINTER_PATTERNS = [
+    r"[Aa]s (shown|illustrated|depicted|presented|summarized|displayed|plotted)"
+    r"\s+in\s+(Figure|Fig\.|Table|Appendix)\s+\w+",
+    r"[Ss]hown in\s+(Figure|Fig\.|Table|Appendix)\s+\w+",
+]
+
+# ── Per-section compression rules ─────────────────────────────────────────────
+# Controls which pipeline stages run for each section key.
+# Sections NOT listed here fall back to the global mode.
+#
+# Levels:
+#   "none"    — whitespace normalisation only (no stripping at all)
+#   "minimal" — whitespace + dedup within section only
+#   "light"   — full light pipeline
+#   "aggressive" — full aggressive pipeline
+SECTION_COMPRESSION_RULES = {
+    "abstract":     "none",      # tiny + every word matters — no compression
+    "introduction": "light",     # boilerplate removal fine
+    "related_work": "light",     # citation removal fine
+    "methodology":  "none",      # shielded in gemini_analyzer; included here for safety
+    "results":      "minimal",   # whitespace + within-section dedup only;
+                                 # evidence pointers and figure refs MUST be kept
+    "discussion":   "light",     # fine — doesn't carry raw numbers
+    "conclusion":   "none",      # small + key claims — no compression
+    "references":   "none",      # already skipped; here for explicit documentation
+}
 
 # ── Citation / reference marker patterns ──────────────────────────────────────
 CITATION_PATTERNS = [
@@ -140,7 +165,7 @@ def _remove_citations(text: str) -> str:
     return text
 
 
-def _remove_boilerplate_sentences(text: str) -> str:
+def _remove_boilerplate_sentences(text: str, strip_evidence: bool = True) -> str:
     """
     Remove academic boilerplate filler clauses from text.
 
@@ -155,7 +180,11 @@ def _remove_boilerplate_sentences(text: str) -> str:
         Input:  "In this paper, we propose a novel approach."
         Output: "a novel approach."   (filler phrase stripped, noun kept)
     """
-    for pattern in BOILERPLATE_PATTERNS:
+    patterns = list(BOILERPLATE_PATTERNS)
+    if strip_evidence:
+        patterns.extend(EVIDENCE_POINTER_PATTERNS)
+
+    for pattern in patterns:
         # Strip matched phrase + optional trailing comma + any surrounding whitespace.
         # Do NOT strip [^.!?\n]* — that would eat the rest of the sentence.
         text = re.sub(pattern + r'[,]?\s*', ' ', text)
@@ -166,52 +195,48 @@ def _remove_boilerplate_sentences(text: str) -> str:
     return text
 
 
-def _deduplicate_sentences(text: str) -> str:
+def _deduplicate_sentences(text: str, within_section_only: bool = True) -> str:
     """
     Remove exact duplicate sentences within the text.
     Comparison is case-insensitive and whitespace-normalized.
     Preserves the first occurrence; removes subsequent exact duplicates.
     Short fragments (≤10 chars) are kept to avoid removing legitimate short sentences.
+
+    within_section_only=True (default): deduplication scope is this text block only.
+    This prevents stripping intentional repetition across different sections
+    (e.g. the same finding stated in abstract, introduction, and conclusion).
     """
-    # Split on sentence-ending punctuation followed by whitespace
     sentences = re.split(r'(?<=[.!?])\s+', text)
     seen: set = set()
     result = []
     for sent in sentences:
-        # Normalize for comparison
         key = re.sub(r'\s+', ' ', sent.strip().lower())
         if len(key) <= 10:
-            # Short fragment — always keep (might be a section title or stub)
             result.append(sent)
         elif key not in seen:
             seen.add(key)
             result.append(sent)
-        # else: duplicate — skip
     return ' '.join(result)
 
 
 def _remove_formula_lines(text: str, aggressive: bool = False) -> str:
     """
     Remove lines that are predominantly mathematical/symbolic.
-
-    light mode (aggressive=False):
-        Only removes lines that contain ZERO alphabetic characters — i.e., pure
-        symbol/number lines such as "3.14 × 10⁻⁵ ≤ 0.001" or equation labels.
-
-    aggressive mode (aggressive=True):
-        Also removes lines where <40% of characters are alphabetic — catches
-        mixed math lines like "y = f(x) + ε where ε ~ N(0, σ²)".
+    If aggressive=True, removes lines that have <40% alphabetic chars.
+    Always removes lines that have 0% alphabetic chars (pure symbol lines).
+    Preserves empty lines as section visual breaks.
     """
     lines = text.split('\n')
     result = []
     for line in lines:
         stripped = line.strip()
         if not stripped:
-            result.append(line)   # preserve blank lines for paragraph structure
+            result.append(line)
             continue
-        if aggressive and _is_formula_line(stripped):
-            continue   # drop formula-heavy line
-        elif not aggressive:
+        if aggressive:
+            if _is_formula_line(line):
+                continue
+        else:
             # Only drop lines with NO alphabetic characters at all
             if not any(c.isalpha() for c in stripped):
                 continue
@@ -219,47 +244,55 @@ def _remove_formula_lines(text: str, aggressive: bool = False) -> str:
     return '\n'.join(result)
 
 
-def _compress_section(text: str, mode: str) -> Tuple[str, int, int]:
+def _compress_section(text: str, mode: str, section_key: str = "") -> Tuple[str, int, int]:
     """
-    Apply the full Approach A compression pipeline to a single section string.
+    Apply the compression pipeline to a single section string.
 
-    Pipeline order (both modes):
-        1. Normalize whitespace
-        2. Remove URL noise
-        3. Remove citation markers
-        4. Remove pure-symbol lines (light formula removal)
-
-    Additional steps for 'light':
-        5. Remove boilerplate phrases
-        6. Deduplicate sentences
-
-    Additional steps for 'aggressive' (superset of light):
-        5. Remove boilerplate phrases
-        6. Deduplicate sentences
-        7. Remove formula-heavy lines (aggressive formula removal)
+    Section-aware rules (SECTION_COMPRESSION_RULES) override the global mode:
+      - "none"    : whitespace normalisation only
+      - "minimal" : whitespace + within-section dedup (no boilerplate/formula removal)
+      - "light"   : full light pipeline, with evidence pointers preserved
+      - "aggressive": light + formula removal, except never on results section
 
     Returns:
         (compressed_text, original_length, compressed_length)
     """
     original_len = len(text)
 
+    # Resolve effective mode for this section
+    effective_mode = SECTION_COMPRESSION_RULES.get(section_key, mode)
+    # "none" override means just clean whitespace, nothing more
+    if effective_mode == "none":
+        text = _normalize_whitespace(text)
+        return text, original_len, len(text)
+
     # ── Stage 1: always run ─────────────────────────────────────────
     text = _normalize_whitespace(text)
     text = _remove_url_noise(text)
     text = _remove_citations(text)
-    text = _remove_formula_lines(text, aggressive=False)  # always strip pure-symbol lines
+    # Pure symbol-lines stripped in all non-none modes
+    text = _remove_formula_lines(text, aggressive=False)
 
-    # ── Stage 2: mode-specific ──────────────────────────────────────
-    if mode in ("light", "aggressive"):
-        text = _remove_boilerplate_sentences(text)
-        text = _deduplicate_sentences(text)
+    # ── Stage 2: minimal mode (results) — dedup only, no boilerplate ─
+    if effective_mode == "minimal":
+        text = _deduplicate_sentences(text, within_section_only=True)
+        text = _normalize_whitespace(text)
+        return text, original_len, len(text)
 
-    if mode == "aggressive":
+    # ── Stage 3: light / aggressive ─────────────────────────────────
+    if section_key in ("results", "discussion"):
+        text = _remove_boilerplate_sentences(text, strip_evidence=False)
+    else:
+        text = _remove_boilerplate_sentences(text, strip_evidence=True)
+
+    text = _deduplicate_sentences(text, within_section_only=True)
+
+    # ── Stage 4: aggressive formula removal — skip for results ───────
+    if effective_mode == "aggressive" and section_key != "results":
         text = _remove_formula_lines(text, aggressive=True)
 
-    # ── Stage 3: final cleanup ──────────────────────────────────────
+    # ── Final cleanup ────────────────────────────────────────────────
     text = _normalize_whitespace(text)
-
     return text, original_len, len(text)
 
 
@@ -357,7 +390,7 @@ def compress_sections(sections: dict, mode: str = "light") -> dict:
             result[key] = text
             continue
 
-        compressed, orig_len, comp_len = _compress_section(text, mode)
+        compressed, orig_len, comp_len = _compress_section(text, mode, section_key=key)
         result[key] = compressed
 
         pct = round((1.0 - comp_len / orig_len) * 100.0, 1) if orig_len > 0 else 0.0
