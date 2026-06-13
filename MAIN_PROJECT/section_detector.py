@@ -241,8 +241,21 @@ def detect_sections(text: str, llm_mapper=None) -> dict:
         if _is_heading_line(line):
             clean = _clean_heading(line)
 
-            # Stop keywords terminate accumulation
+            # Stop keywords terminate accumulation.
+            # Inside the references section, bibliography entries can mention
+            # keywords like "appendix" or "funding" (e.g. "[12] J. Smith, "A
+            # study," Journal, Appendix"). Only treat such lines as a true
+            # section break when they are also a markdown header (starts with
+            # `#`) or a fully uppercase strong-break heading.
+            stripped = line.strip()
+            is_strong_break = stripped.startswith("#") or (
+                len(stripped) >= 3 and stripped.isupper()
+            )
             if any(stop in clean for stop in STOP_KEYWORDS):
+                if current_section == "references" and not is_strong_break:
+                    # Treat as a normal bibliography line — accumulate, don't break.
+                    sections[current_section] += line + "\n"
+                    continue
                 current_section = None
                 continue
 
