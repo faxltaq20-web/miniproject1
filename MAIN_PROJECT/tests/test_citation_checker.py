@@ -575,3 +575,238 @@ class TestParallelVerificationScoring:
         # Assert
         assert result["verified"] == 3
         assert result["not_found"] == 2
+
+
+# ─────────────────────────────────────────────
+# Phase 12 — Tests for _clean_doi_parentheses
+# ─────────────────────────────────────────────
+
+class TestCleanDoiParentheses:
+    """Phase 12 (V1): Balanced-aware trailing trim for DOIs."""
+
+    def test_empty_string_unchanged(self):
+        # Arrange / Act / Assert
+        assert citation_checker._clean_doi_parentheses("") == ""
+
+    def test_no_brackets_unchanged(self):
+        # Arrange
+        doi = "10.1109/5.726791"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == doi
+
+    def test_balanced_parens_preserved(self):
+        # Arrange — balanced trailing parens are part of the DOI, keep them.
+        doi = "10.1000/xyz(abc)"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/xyz(abc)"
+
+    def test_balanced_brackets_preserved(self):
+        # Arrange
+        doi = "10.1000/xyz[abc]"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/xyz[abc]"
+
+    def test_unmatched_trailing_paren_stripped(self):
+        # Arrange — DOI scraped from "(see 10.1000/foo)" lacks a matching `(`.
+        doi = "10.1000/foo)"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/foo"
+
+    def test_unmatched_trailing_bracket_stripped(self):
+        # Arrange
+        doi = "10.1000/foo]"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/foo"
+
+    def test_multiple_unmatched_trailing_parens_stripped(self):
+        # Arrange — two excess closers, both should be peeled off.
+        doi = "10.1000/foo))"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/foo"
+
+    def test_extra_unmatched_after_balanced_pair_stripped(self):
+        # Arrange — "(abc))" has 1 open, 2 close: trim one trailing `)`.
+        doi = "10.1000/xyz(abc))"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert — the unmatched outer `)` is stripped; the balanced pair stays.
+        assert result == "10.1000/xyz(abc)"
+
+    def test_mixed_brackets_independent(self):
+        # Arrange — unmatched `]` should be stripped without disturbing parens.
+        doi = "10.1000/xyz(abc)]"
+        # Act
+        result = citation_checker._clean_doi_parentheses(doi)
+        # Assert
+        assert result == "10.1000/xyz(abc)"
+
+
+# ─────────────────────────────────────────────
+# Phase 12 — Tests for combined labeled + standalone DOI extraction
+# ─────────────────────────────────────────────
+
+class TestCombinedDoiExtraction:
+    """Phase 12 (V2): _extract_dois merges labeled and standalone matches."""
+
+    def test_mixed_labeled_and_standalone_both_extracted(self):
+        # Arrange — labeled DOI + bare standalone DOI in the same blob.
+        # Earlier behavior found only the labeled one and skipped standalone.
+        text = (
+            "[1] Smith. DOI: 10.1109/5.726791. Journal of Things.\n"
+            "[2] Brown. https://doi.org/10.1234/labeled.two. Conf.\n"
+            "[3] Lee. Some Paper. 10.5555/standalone.three"
+        )
+        # Act
+        result = citation_checker._extract_dois(text)
+        # Assert — all three DOIs must appear regardless of label state.
+        assert "10.1109/5.726791" in result
+        assert "10.1234/labeled.two" in result
+        assert "10.5555/standalone.three" in result
+
+    def test_balanced_paren_doi_preserved_after_extraction(self):
+        # Arrange — DOI with balanced trailing parens must survive cleanup.
+        text = "Ref. DOI: 10.1000/abc(xyz)"
+        # Act
+        result = citation_checker._extract_dois(text)
+        # Assert
+        assert "10.1000/abc(xyz)" in result
+
+    def test_unmatched_paren_stripped_during_extraction(self):
+        # Arrange — DOI surrounded by paren (no matching open inside the DOI).
+        text = "Ref. (10.1000/foo)"
+        # Act
+        result = citation_checker._extract_dois(text)
+        # Assert — trailing unmatched `)` removed.
+        assert "10.1000/foo" in result
+        # And no version with the stray `)` should be present.
+        assert "10.1000/foo)" not in result
+
+    def test_dedupe_across_labeled_and_standalone(self):
+        # Arrange — the same DOI appears both as labeled and standalone.
+        text = "DOI: 10.1109/5.726791. See also 10.1109/5.726791 for details."
+        # Act
+        result = citation_checker._extract_dois(text)
+        # Assert
+        assert result.count("10.1109/5.726791") == 1
+
+
+# ─────────────────────────────────────────────
+# Phase 12 — Tests for unified per-reference scoring
+# ─────────────────────────────────────────────
+
+class TestUnifiedReferenceScoring:
+    """
+    Phase 12 (V3): Per-reference flow validates DOIs first, then falls back
+    to Semantic Scholar title search for references whose DOIs fail or are
+    missing — fixing the historic all-or-none title-check bug.
+    """
+
+    def test_ref_without_doi_validated_via_title_when_others_have_dois(self, monkeypatch):
+        # Arrange — mixed list:
+        #   ref1 has a valid DOI → verified by _validate_doi
+        #   ref2 has NO DOI but has a recognisable title → verified by SS
+        # Old behavior: presence of any DOI disabled title fallback for ref2.
+        monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "verified")
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": "verified")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        text = (
+            "[1] Smith, J. (2020). \"Paper with a DOI.\" Journal of Things. "
+            "DOI: 10.1109/5.726791\n"
+            "[2] Brown, T. (2021). \"Paper without a DOI but with a clear title.\" "
+            "Conference of Things, 2(1), 10-20."
+        )
+        # Act
+        result = citation_checker.check_citations(text)
+        # Assert — both references must count as verified.
+        assert result["verified"] == 2
+        assert result["not_found"] == 0
+        # Score must be high: both verified + recency 10 → ~10.
+        assert result["score"] == 10.0
+
+    def test_mixed_valid_and_invalid_dois_aggregate(self, monkeypatch):
+        # Arrange — first DOI verifies, second is not_found and has no title.
+        calls = []
+        def fake_validate(doi):
+            calls.append(doi)
+            return "verified" if len(calls) == 1 else "not_found"
+        monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
+        # Title fallback returns not_found for unknown titles.
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": "not_found")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        text = (
+            "[1] Author A. (2020). Title one in the list. Conf. DOI: 10.1000/one\n"
+            "[2] Author B. (2020). Title two in the list. Conf. DOI: 10.1000/two"
+        )
+        # Act
+        result = citation_checker.check_citations(text)
+        # Assert — 1 verified, 1 not_found.
+        assert result["verified"] == 1
+        assert result["not_found"] == 1
+        # doi_score = 1/(1+1)*10 = 5.0; blended with recency 5.0 → 5.0.
+        assert result["score"] == 5.0
+
+    def test_not_found_doi_rescued_by_title_fallback(self, monkeypatch):
+        # Arrange — DOI fails CrossRef but Semantic Scholar verifies via title.
+        monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "not_found")
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": "verified")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        text = (
+            "[1] Smith, J. (2020). \"A Recovered Paper Title For SS.\" Journal of X. "
+            "DOI: 10.9999/fake.doi"
+        )
+        # Act
+        result = citation_checker.check_citations(text)
+        # Assert — DOI lookup failed but title fallback rescues the reference.
+        assert result["verified"] == 1
+        assert result["not_found"] == 0
+        # DOI must not appear in flagged_dois because the reference is verified.
+        assert "10.9999/fake.doi" not in result["flagged_dois"]
+
+    def test_sample_capped_at_fifteen(self, monkeypatch):
+        # Arrange — 20 references, each with a DOI; ensure only 15 are checked.
+        validate_calls = []
+        def fake_validate(doi):
+            validate_calls.append(doi)
+            return "verified"
+        monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": "not_found")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        text = "\n".join([
+            f"[{i}] Author{i}, A. (2020). Title of paper {i}. Journal of Testing, "
+            f"{i}(1), 1-10. DOI: 10.1000/sample.{i:03d}"
+            for i in range(1, 21)
+        ])
+        # Act
+        result = citation_checker.check_citations(text)
+        # Assert — at most 15 references validated despite 20 in the section.
+        assert result["verified"] <= 15
+        # And total_refs reports the true count (20).
+        assert result["total_refs"] == 20
