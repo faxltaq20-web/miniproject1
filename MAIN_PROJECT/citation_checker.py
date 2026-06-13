@@ -79,25 +79,34 @@ def _clean_doi_parentheses(doi: str) -> str:
 
 def _extract_dois(references_text: str) -> list:
     """
-    Area 7: Extract DOIs from references text using both labeled and standalone patterns.
-    Returns a deduplicated list of up to MAX_DOIS DOI strings.
+    Area 7: Extract DOIs from references text using both labeled and standalone
+    patterns and merge their matches.
+
+    Strategy:
+    - Run BOTH `DOI_LABELED` (DOI:/doi:/doi.org prefixes) and `DOI_STANDALONE`
+      (raw `10.XXXX/...`) patterns. Earlier behavior was mutually exclusive —
+      if any labeled DOI was found the standalone pattern was skipped entirely,
+      causing mixed-format bibliographies to lose standalone DOIs.
+    - Strip generic trailing junk via `TRAILING_JUNK`, then apply
+      `_clean_doi_parentheses()` for balanced-aware ) / ] trimming.
+    - Deduplicate, preserving discovery order, and cap at `MAX_DOIS`.
+
+    Returns:
+        A deduplicated list of up to `MAX_DOIS` DOI strings.
     """
-    # Try labeled DOIs first (higher confidence)
-    raw_matches = DOI_LABELED.findall(references_text)
-    
-    # If no labeled DOIs, try standalone pattern
-    if not raw_matches:
-        raw_matches = DOI_STANDALONE.findall(references_text)
-    
     cleaned = []
     seen = set()
-    for doi in raw_matches:
-        doi = TRAILING_JUNK.sub("", doi).strip()
-        if doi and doi not in seen:
-            seen.add(doi)
-            cleaned.append(doi)
-        if len(cleaned) >= MAX_DOIS:
-            break
+
+    for pattern in (DOI_LABELED, DOI_STANDALONE):
+        for m in pattern.finditer(references_text):
+            doi = m.group(1)
+            doi = TRAILING_JUNK.sub("", doi).strip()
+            doi = _clean_doi_parentheses(doi)
+            if doi and doi not in seen:
+                seen.add(doi)
+                cleaned.append(doi)
+            if len(cleaned) >= MAX_DOIS:
+                return cleaned
     return cleaned
 
 
