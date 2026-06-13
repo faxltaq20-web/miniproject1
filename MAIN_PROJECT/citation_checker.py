@@ -468,13 +468,21 @@ def _validate_doi(doi: str) -> str:
 
 def check_citations(references_text: str, full_text: str = "") -> dict:
     """
-    Area 7: Extract DOIs from the references section, validate each against CrossRef,
-    with two-tier fallback (DOI → Title → CrossRef Works Search).
-    Detect duplicates and build structured flagged items.
+    Area 7: Unified per-reference validation with DOI-first / title-fallback.
+
+    A sample of up to 15 reference lines is checked in parallel. For each
+    reference:
+      1. Extract DOI(s) from the line. If present, validate via CrossRef
+         (`_validate_doi`). If any DOI verifies, the reference is verified.
+      2. If the reference has no DOI, or all of its DOIs fail (`not_found`),
+         fall back to a Semantic Scholar title search.
+      3. Aggregate per-reference outcomes (verified / not_found / unreachable)
+         and blend into the final score along with ArXiv boost + recency.
 
     Args:
         references_text: raw text of the paper's references section.
-        full_text: full paper text (used for in-text citation cross-referencing).
+        full_text: full paper text (currently unused — reserved for in-text
+                   citation cross-referencing in a future phase).
 
     Returns:
         {
@@ -483,7 +491,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             "verified": int,
             "not_found": int,
             "unreachable": int,
-            "flagged_dois": [str],     # DOIs that failed verification
+            "flagged_dois": [str],     # DOIs that failed all verification
             "flagged_items": [         # detailed flagged items for display
                 {"citation": str, "category": str, "detail": str}
             ],
@@ -511,12 +519,17 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     ref_lines = [l.strip() for l in references_text.splitlines() if len(l.strip()) > 20]
     total_refs = max(len(ref_lines), 1)
 
-    # Extract and validate DOIs
+    # Sample size cap: avoid exhausting API rate limits on huge bibliographies.
+    SAMPLE_CAP = 15
+
+    # Extract section-level DOI list (kept for backward-compatible reporting
+    # — issues messages still reference "X of N DOI(s)").
     dois = _extract_dois(references_text)
     flagged_items = []
 
     if not dois:
-        # No DOIs found — use parallel title verification via Semantic Scholar
+        # No DOIs anywhere — keep dedicated title-only branch (test contract
+        # depends on this calling `_verify_references_parallel`).
         verification = _verify_references_parallel(ref_lines)
         verified_count = verification["verified"]
         not_found_count = verification["not_found"]
@@ -606,93 +619,153 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             "recency": recency,
         }
 
-    # Validate each DOI in parallel (5 concurrent workers)
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_doi = {executor.submit(_validate_doi, doi): doi for doi in dois}
-        results = {}
-        for future in as_completed(future_to_doi):
-            doi = future_to_doi[future]
+    # ── Unified per-reference validation ─────────────────────────────────────
+    # Sample up to SAMPLE_CAP references, validate each in parallel. For each
+    # reference: try its own DOIs first; if all DOIs fail, fall back to a
+    # Semantic Scholar title search for that specific reference. This fixes
+    # the historic "all-or-none" bug where the presence of any DOI disabled
+    # title checking for references that didn't have a DOI.
+    sample_lines = ref_lines[:SAMPLE_CAP]
+
+    # Edge case: references section is so terse that no line exceeds the
+    # 20-char heuristic, yet we still extracted DOIs. Treat each DOI's raw
+    # surrounding line as its own synthetic reference so DOIs are still
+    # validated (preserves "extract DOIs and validate them" contract).
+    if not sample_lines and dois:
+        raw_lines = [l.strip() for l in references_text.splitlines() if l.strip()]
+        synthetic = []
+        for doi in dois:
+            for line in raw_lines:
+                if doi in line and line not in synthetic:
+                    synthetic.append(line)
+                    break
+        sample_lines = synthetic[:SAMPLE_CAP]
+
+    def _validate_reference(ref_line: str) -> dict:
+        """
+        Validate a single reference line. Returns a dict with:
+          {
+            "status":           "verified" | "not_found" | "unreachable",
+            "doi_statuses":     {doi: status, ...},   # per-DOI raw outcomes
+            "verified_via_doi": str | None,           # DOI that verified, if any
+            "tried_title":      bool,
+          }
+        """
+        line_dois = _extract_dois(ref_line)
+        doi_statuses: dict = {}
+        verified_via_doi = None
+        any_unreachable = False
+
+        for doi in line_dois:
             try:
-                results[doi] = future.result()
+                status = _validate_doi(doi)
             except Exception:
-                results[doi] = "unreachable"
+                status = "unreachable"
+            doi_statuses[doi] = status
+            if status == "verified" and verified_via_doi is None:
+                verified_via_doi = doi
+            if status == "unreachable":
+                any_unreachable = True
 
-    verified_count    = sum(1 for s in results.values() if s == "verified")
-    not_found_count   = sum(1 for s in results.values() if s == "not_found")
-    unreachable_count = sum(1 for s in results.values() if s == "unreachable")
+        # If any DOI verified, the reference is verified.
+        if verified_via_doi:
+            return {
+                "status": "verified",
+                "doi_statuses": doi_statuses,
+                "verified_via_doi": verified_via_doi,
+                "tried_title": False,
+            }
 
-    flagged_dois = [doi for doi, status in results.items() if status == "not_found"]
+        # All DOIs unreachable (and no verified) → reference unreachable.
+        # Do NOT attempt title fallback (the API stack may be throttled).
+        if line_dois and all(s == "unreachable" for s in doi_statuses.values()):
+            return {
+                "status": "unreachable",
+                "doi_statuses": doi_statuses,
+                "verified_via_doi": None,
+                "tried_title": False,
+            }
 
-    # Area 7: Two-tier fallback for not-found DOIs (parallelized)
-    # Try title-based Semantic Scholar, then CrossRef Works Search
-    def _fallback_verify_doi(doi: str) -> tuple:
-        """Try both fallback tiers for a single DOI. Returns (doi, status)."""
-        # Find the reference line containing this DOI
-        matching_line = ""
-        for line in ref_lines:
-            if doi in line:
-                matching_line = line
-                break
-
-        if not matching_line:
-            return (doi, "not_found")
-
-        # Extract title and year for fallback search
-        title = _extract_title_from_ref(matching_line)
-        year = _extract_year_from_ref(matching_line)
-
-        # Tier 1: Try Semantic Scholar title search
+        # No DOIs, or all DOIs not_found / partially not_found → try title.
+        title = _extract_title_from_ref(ref_line)
+        year = _extract_year_from_ref(ref_line)
+        title_status = "not_found"
         if title:
-            ss_status = _verify_title_semantic_scholar(title, year)
-            if ss_status == "verified":
-                return (doi, "verified")
-            # If unreachable, don't try tier 2 — API might be down
-            if ss_status == "unreachable":
-                return (doi, "unreachable")
+            try:
+                title_status = _verify_title_semantic_scholar(title, year)
+            except Exception:
+                title_status = "unreachable"
 
-        # Tier 2: Try CrossRef Works Search API
-        crossref_result = _search_crossref_works(matching_line)
-        if crossref_result and crossref_result.get("matched"):
-            return (doi, "verified")
+        if title_status == "verified":
+            status = "verified"
+        elif title_status == "unreachable" and not line_dois:
+            # No DOI signal and title check unreachable → unreachable.
+            status = "unreachable"
+        elif title_status == "unreachable" and any_unreachable:
+            status = "unreachable"
+        else:
+            status = "not_found"
 
-        return (doi, "not_found")
+        return {
+            "status": status,
+            "doi_statuses": doi_statuses,
+            "verified_via_doi": None,
+            "tried_title": True,
+        }
 
-    # Run fallback verification in parallel
-    if flagged_dois:
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {executor.submit(_fallback_verify_doi, doi): doi for doi in flagged_dois}
-            for future in as_completed(futures):
-                try:
-                    doi, status = future.result()
-                    if status == "verified":
-                        results[doi] = "verified"
-                        flagged_dois.remove(doi)
-                        verified_count += 1
-                        not_found_count -= 1
-                except Exception:
-                    pass  # Keep as not_found
+    # Run per-reference validation in parallel.
+    per_ref_results: list = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_line = {
+            executor.submit(_validate_reference, line): line
+            for line in sample_lines
+        }
+        for future in as_completed(future_to_line):
+            line = future_to_line[future]
+            try:
+                per_ref_results.append((line, future.result()))
+            except Exception:
+                per_ref_results.append((line, {
+                    "status": "unreachable",
+                    "doi_statuses": {},
+                    "verified_via_doi": None,
+                    "tried_title": False,
+                }))
 
-    # Build flagged_items for remaining not_found DOIs
+    # Aggregate per-reference outcomes (this is what `verified` reports).
+    verified_count    = sum(1 for _, r in per_ref_results if r["status"] == "verified")
+    not_found_count   = sum(1 for _, r in per_ref_results if r["status"] == "not_found")
+    unreachable_count = sum(1 for _, r in per_ref_results if r["status"] == "unreachable")
+
+    # Build flagged_dois: every DOI that came back not_found across the sample
+    # and was not later rescued by a successful title fallback for its own ref.
+    flagged_dois = []
+    seen_flagged = set()
+    for ref_line, r in per_ref_results:
+        if r["status"] == "verified":
+            continue  # ref rescued — don't surface its DOIs as flagged
+        for doi, doi_status in r["doi_statuses"].items():
+            if doi_status == "not_found" and doi not in seen_flagged:
+                seen_flagged.add(doi)
+                flagged_dois.append(doi)
+
+    # Build flagged_items entries for not_found DOIs.
     for doi in flagged_dois:
-        # Try to find the reference line containing this DOI
         matching_line = ""
-        for line in ref_lines:
+        for line in sample_lines:
             if doi in line:
                 matching_line = line
                 break
-
-        # Extract author-year label from the reference line
         author_match = re.match(r'([A-Z][a-z]+(?:\s+(?:et\s+al\.?|&\s+\w+))?.*?\d{4})',
                                  matching_line) if matching_line else None
         citation_label = author_match.group(1) if author_match else doi
-
         flagged_items.append({
             "citation": citation_label,
             "category": "not_found",
             "detail": "No CrossRef match for DOI or title search."
         })
 
-    # Detect duplicate references
+    # Detect duplicate references.
     duplicate_flags = _detect_duplicates(references_text)
     flagged_items.extend(duplicate_flags)
 
@@ -715,8 +788,8 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     # ── Citation recency ──────────────────────────────────────────────────────
     recency = _score_citation_recency(ref_lines)
 
-    # All DOIs unreachable — neutral fallback score
-    if unreachable_count == len(dois):
+    # All sampled references unreachable — neutral fallback score.
+    if per_ref_results and unreachable_count == len(per_ref_results):
         return {
             "score": 7.0,
             "total_refs": total_refs,
@@ -731,13 +804,13 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
             "suggestions": ["Retry the analysis when API demand is lower."],
         }
 
-    # Fair score: exclude unreachable from calculation
+    # Fair score: exclude unreachable from calculation.
     # Base score = verified / (verified + not_found) * 10
     # Blended with recency: 80% DOI score + 20% recency score
     scorable = verified_count + not_found_count
     doi_score = round((verified_count / scorable) * 10, 1) if scorable > 0 else 7.0
 
-    # ArXiv boost: if ArXiv refs verify well, lift the score slightly
+    # ArXiv boost: if ArXiv refs verify well, lift the score slightly.
     if arxiv_ids:
         arxiv_ratio = arxiv_verified / len(arxiv_ids)
         if arxiv_ratio >= 0.7:
@@ -747,7 +820,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
 
     score = round(0.80 * doi_score + 0.20 * recency["recency_score"], 1)
 
-    # Build human-readable issues and suggestions
+    # Build human-readable issues and suggestions.
     issues = []
     suggestions = []
 
