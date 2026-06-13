@@ -76,6 +76,13 @@ def _is_heading_line(line: str) -> bool:
     2. Short standalone lines (< 80 chars, no sentence-ending punctuation)
     3. ALL CAPS lines (common in academic papers: "INTRODUCTION", "ABSTRACT")
     4. Numbered headings: "1. Introduction", "2.1 Methods"
+
+    Bibliographic exclusion:
+    Lines that look like a numbered/bracketed bibliography entry followed by
+    title-cased author/title words (e.g. "[12] J. Smith, A Study Of..." or
+    "1. Brown T. Language Models...") are NOT headings — they are reference
+    list items. Excluding them prevents false-positive section breaks inside
+    the references list.
     """
     stripped = line.strip()
     if not stripped:
@@ -83,6 +90,11 @@ def _is_heading_line(line: str) -> bool:
     # Markdown headings — always headings
     if stripped.startswith("#"):
         return True
+    # Bibliographic list-item pattern: "[N] Title-Case" or "N. Title-Case"
+    # Followed by a title-case word (capital letter then lowercase), which is
+    # characteristic of author/title text in reference lists.
+    if re.match(r'^(?:\[\d+\]|\d+\.)\s+[A-Z][a-z]', stripped):
+        return False
     # ALL CAPS lines (at least 3 chars, likely section heading)
     if len(stripped) >= 3 and stripped.isupper() and not any(c.isdigit() for c in stripped):
         return True
