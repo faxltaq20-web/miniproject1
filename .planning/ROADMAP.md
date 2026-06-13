@@ -14,6 +14,7 @@
 | [Phase 9: Automated End-to-End Debugging](#phase-9-automated-end-to-end-debugging) | Auto-fetch real academic papers, run the full pipeline with Gemini AI API, and validate nothing is missing |
 | [Phase 10: API Token Efficiency & Input Compression](#phase-10-api-token-efficiency--input-compression) | Reduce Gemini API token usage by ≥40% via structured text normalization and semantic compression without score drift |
 | [Phase 11: Improve the frontend UI](#phase-11-improve-the-frontend-ui) | Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience |
+| [Phase 12: Improve citation detection](#phase-12-improve-citation-detection) | Improve citation detection |
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -330,12 +331,14 @@ Instead of sending raw section text, extract structured key facts:
 - **Expected reduction: 50–65%**, highly deterministic, no external dependencies
 
 **Requirements Mapped:**
+
 - OPT-06: Optimize text truncation strategy for LLM context window usage (existing)
 - TOKEN-01: Design and implement a text normalization pre-processor that reduces prompt size by ≥40% with <5% semantic loss
 - TOKEN-02: Validate compressed output against uncompressed baseline on 5 real papers (score delta ≤0.5 per layer)
 - TOKEN-03: Make compression strategy configurable (off / light / aggressive) via `.env`
 
 **Success Criteria:**
+
 1. New `text_compressor.py` module with `compress_sections(sections: dict, mode: str) → dict` interface
 2. Compression reduces total assembled prompt by ≥40% (measured in chars) in default `light` mode
 3. Score drift vs. uncompressed baseline is ≤0.5 per layer on ≥4 of 5 validation papers
@@ -345,22 +348,37 @@ Instead of sending raw section text, extract structured key facts:
 **Plans:** 3 plans
 
 Plans:
+
 - [x] Plan 1: Text Normalization & Extractive Pre-Processor (`text_compressor.py`)
 - [x] Plan 2: Validation Harness — Score Drift & Token Reduction Metrics
 - [x] Plan 3: Pipeline Integration & Configurable Compression Modes
 
+### Phase 12: improve citation detection
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 11
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 12 to break down)
+
 ---
 
 ## Phase 11: Improve the frontend UI
+
 **Goal:** Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience of ResearchSense based on the specifications.
 **Depends on:** Phase 8 (Web Frontend Dashboard), Phase 10 (Pipeline integration and optimizations)
 
 **Requirements Mapped:**
+
 - UI-01: Redesign the UI dashboard widgets for an interactive and premium experience
 - UI-02: Enhance the styling with rich glassmorphism, responsive grids, and micro-animations
 - UI-03: Improve the layout hierarchy to prioritize key metrics like overall score and grade
 
 **Success Criteria:**
+
 1. Dashboard layout updated with rich glassmorphism styling and responsive grid elements
 2. Frontend dashboard displays verified/unverified citation summaries and detailed reference entries cleanly
 3. Interactive dashboard charts or gauges show the grade and status labels appropriately
@@ -368,4 +386,5 @@ Plans:
 **Plans:** 1 plans
 
 Plans:
+
 - [/] Plan 1: Design and implement UI/UX improvements for the frontend dashboard
