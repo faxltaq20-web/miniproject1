@@ -20,8 +20,12 @@ DOI_STANDALONE = re.compile(
     re.IGNORECASE
 )
 
-# Area 7: Strip trailing punctuation, quotes, backticks, brackets, braces, dashes
-TRAILING_JUNK = re.compile(r'[.,;:)\]>\'\"\`\\\-\'\'\u2018\u2019\u201c\u201d]+$')
+# Area 7: Strip trailing punctuation, quotes, backticks, braces, dashes.
+# Note: closing parens `)` and brackets `]` are intentionally NOT included here
+# \u2014 they are handled by `_clean_doi_parentheses()` which only strips them when
+# unmatched (preserving DOIs that legitimately end with balanced brackets like
+# `10.1000/abc(123)`).
+TRAILING_JUNK = re.compile(r'[.,;:>\'\"\`\\\-\'\'\u2018\u2019\u201c\u201d]+$')
 
 # Pattern to extract author-year citations like "Smith & Lee, 2019" or "(Author, 2020)"
 AUTHOR_YEAR_PATTERN = re.compile(
@@ -46,6 +50,31 @@ HEADERS = {
     "User-Agent": "ResearchSense/1.0 (mailto:team@researchsense.dev)"
 }
 TIMEOUT = 5  # seconds per request
+
+
+def _clean_doi_parentheses(doi: str) -> str:
+    """
+    Strip trailing `)` or `]` from a DOI only when they are unmatched.
+
+    Many DOIs legitimately end with balanced brackets (e.g. `10.1000/abc(123)`).
+    Blindly stripping trailing closing characters corrupts these. This helper
+    counts opens vs. closes and only peels off the trailing closer when the
+    counts are unbalanced.
+
+    Args:
+        doi: A DOI string that may have a trailing `)` or `]` artifact from
+             surrounding text (e.g. `10.1000/foo)` extracted from `"(see 10.1000/foo)"`).
+
+    Returns:
+        The DOI with unmatched trailing `)` / `]` characters removed.
+    """
+    if not doi:
+        return doi
+    while doi.endswith(')') and doi.count('(') < doi.count(')'):
+        doi = doi[:-1]
+    while doi.endswith(']') and doi.count('[') < doi.count(']'):
+        doi = doi[:-1]
+    return doi
 
 
 def _extract_dois(references_text: str) -> list:
