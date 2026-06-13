@@ -21,7 +21,10 @@ def extract_text(pdf_path: str) -> str:
           flush=True)
     try:
         doc = fitz.open(pdf_path)
-        pages = [page.get_text() for page in doc]
+        # sort=True orders text blocks by reading order (top-to-bottom,
+        # left-to-right). Critical for two-column layouts so bibliography
+        # entries are not interleaved across columns.
+        pages = [page.get_text("text", sort=True) for page in doc]
         doc.close()
         plain_text = "\n".join(pages)
     except Exception:
