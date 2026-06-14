@@ -740,13 +740,15 @@ class TestUnifiedReferenceScoring:
         assert result["score"] == 10.0
 
     def test_mixed_valid_and_invalid_dois_aggregate(self, monkeypatch):
-        # Arrange — first DOI verifies, second is not_found and has no title.
+        # Phase 13: DOIs are validated globally; uncovered refs go to title
+        # fallback. With 2 DOIs (1 verified, 1 not_found) and title fallback
+        # returning not_found for the uncovered ref, blended counts are
+        # verified=1 (DOI), not_found=1 (DOI) + 1 (title) = 2.
         calls = []
         def fake_validate(doi):
             calls.append(doi)
             return "verified" if len(calls) == 1 else "not_found"
         monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
-        # Title fallback returns not_found for unknown titles.
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "not_found")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
@@ -757,16 +759,18 @@ class TestUnifiedReferenceScoring:
             "[1] Author A. (2020). Title one in the list. Conf. DOI: 10.1000/one\n"
             "[2] Author B. (2020). Title two in the list. Conf. DOI: 10.1000/two"
         )
-        # Act
         result = citation_checker.check_citations(text)
-        # Assert — 1 verified, 1 not_found.
         assert result["verified"] == 1
-        assert result["not_found"] == 1
-        # doi_score = 1/(1+1)*10 = 5.0; blended with recency 5.0 → 5.0.
-        assert result["score"] == 5.0
+        # not_found_dois (1) + not_found_titles (1) = 2
+        assert result["not_found"] == 2
+        # scorable = 1 verified + 2 not_found = 3 → doi_score = 1/3 * 10 ≈ 3.3
+        # blended: 0.8 * 3.3 + 0.2 * 5.0 ≈ 3.6
+        assert result["score"] == 3.6
 
     def test_not_found_doi_rescued_by_title_fallback(self, monkeypatch):
-        # Arrange — DOI fails CrossRef but Semantic Scholar verifies via title.
+        # Phase 13: DOIs and titles are scored separately. A not_found DOI
+        # still appears in flagged_dois even if a title fallback verifies the
+        # same reference (since the plan reports DOIs separately).
         monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "not_found")
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "verified")
@@ -778,23 +782,28 @@ class TestUnifiedReferenceScoring:
             "[1] Smith, J. (2020). \"A Recovered Paper Title For SS.\" Journal of X. "
             "DOI: 10.9999/fake.doi"
         )
-        # Act
         result = citation_checker.check_citations(text)
-        # Assert — DOI lookup failed but title fallback rescues the reference.
+        # verified_titles = 1, not_found_dois = 1
         assert result["verified"] == 1
-        assert result["not_found"] == 0
-        # DOI must not appear in flagged_dois because the reference is verified.
-        assert "10.9999/fake.doi" not in result["flagged_dois"]
+        assert result["not_found"] == 1
+        # DOI is still flagged because it failed CrossRef.
+        assert "10.9999/fake.doi" in result["flagged_dois"]
 
     def test_sample_capped_at_fifteen(self, monkeypatch):
-        # Arrange — 20 references, each with a DOI; ensure only 15 are checked.
+        # Phase 13: global DOI sweep validates up to MAX_DOIS=20 DOIs (not
+        # capped at 15). Title fallback is the strict cap (5) on Semantic
+        # Scholar queries. With 20 verified DOIs covering all refs, no title
+        # queries are made and verified == 20.
         validate_calls = []
         def fake_validate(doi):
             validate_calls.append(doi)
             return "verified"
         monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
-        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
-            lambda title, ref_year="": "not_found")
+        ss_calls = []
+        def fake_ss(title, ref_year=""):
+            ss_calls.append(title)
+            return "not_found"
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar", fake_ss)
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
             lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
@@ -804,9 +813,11 @@ class TestUnifiedReferenceScoring:
             f"{i}(1), 1-10. DOI: 10.1000/sample.{i:03d}"
             for i in range(1, 21)
         ])
-        # Act
         result = citation_checker.check_citations(text)
-        # Assert — at most 15 references validated despite 20 in the section.
-        assert result["verified"] <= 15
-        # And total_refs reports the true count (20).
+        # All 20 DOIs verify under MAX_DOIS=20; total_refs reports the true count.
+        assert result["verified"] == 20
         assert result["total_refs"] == 20
+        # Every DOI was verified → no uncovered refs → no SS queries made.
+        assert len(ss_calls) == 0
+        # And no DOI validation exceeded MAX_DOIS=20.
+        assert len(validate_calls) <= 20
