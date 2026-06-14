@@ -15,6 +15,7 @@
 | [Phase 10: API Token Efficiency & Input Compression](#phase-10-api-token-efficiency--input-compression) | Reduce Gemini API token usage by ≥40% via structured text normalization and semantic compression without score drift |
 | [Phase 11: Improve the frontend UI](#phase-11-improve-the-frontend-ui) | Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience |
 | [Phase 12: Improve citation detection](#phase-12-improve-citation-detection) | Improve citation detection |
+| [Phase 13: Refine citation verification logic](#phase-13-refine-citation-verification-logic) | Refine citation verification logic |
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -363,6 +364,17 @@ Plans:
 Plans:
 
 - [x] TBD (run /gsd-plan-phase 12 to break down) (completed 2026-06-13)
+
+### Phase 13: refine citation verification logic
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 13 to break down)
 
 ---
 
