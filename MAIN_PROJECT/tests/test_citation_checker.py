@@ -821,3 +821,117 @@ class TestUnifiedReferenceScoring:
         assert len(ss_calls) == 0
         # And no DOI validation exceeded MAX_DOIS=20.
         assert len(validate_calls) <= 20
+
+
+# ─────────────────────────────────────────────
+# Phase 13 — Global DOI sweep + bounded title fallback
+# ─────────────────────────────────────────────
+
+class TestPhase13GlobalSweep:
+    """
+    Phase 13: DOIs are extracted from the ENTIRE references block (not just
+    the first 15 lines), and the Semantic Scholar title fallback is strictly
+    capped at MAX_TITLE_FALLBACK=5 to avoid HTTP 429 rate limiting.
+    """
+
+    def test_global_doi_extraction_finds_dois_beyond_line_fifteen(self, monkeypatch):
+        # Arrange — bibliography with 25 entries. The DOI we care about sits
+        # at line 20, well beyond the historic 15-line cutoff.
+        validated = []
+        def fake_validate(doi):
+            validated.append(doi)
+            return "verified"
+        monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": "not_found")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+
+        deep_doi = "10.1234/deep.in.bibliography"
+        lines = [
+            f"[{i}] Author{i}, A. (2020). Paper {i} without a DOI line, long enough."
+            for i in range(1, 20)
+        ]
+        lines.append(
+            f"[20] Buried Author. (2021). \"Title way down here.\" Journal of X. DOI: {deep_doi}"
+        )
+        for i in range(21, 26):
+            lines.append(
+                f"[{i}] Author{i}, A. (2020). Paper {i} after the deep one, long enough."
+            )
+        text = "\n".join(lines)
+
+        # Act
+        result = citation_checker.check_citations(text)
+
+        # Assert — the deep DOI was extracted and validated.
+        assert deep_doi in validated
+        assert result["verified"] >= 1
+        assert deep_doi not in result["flagged_dois"]
+
+    def test_semantic_scholar_fallback_capped_at_five(self, monkeypatch):
+        # Arrange — 20 references with NO DOIs. Without the cap the fallback
+        # would issue 20 Semantic Scholar queries (rate-limit risk). MAX_TITLE_FALLBACK=5.
+        ss_calls = []
+        def fake_ss(title, ref_year=""):
+            ss_calls.append(title)
+            return "not_found"
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar", fake_ss)
+        monkeypatch.setattr(citation_checker, "_validate_doi",
+            lambda doi: "verified")  # not used; no DOIs in text
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.0,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+
+        # Note: paths without ANY DOIs route through the legacy title-only branch.
+        # To exercise the Phase 13 main path with the 5-cap, include at least
+        # one DOI'd ref so we hit the unified branch.
+        lines = [
+            "[1] Doi'd Author. (2020). \"Has DOI.\" Journal. DOI: 10.1000/keep"
+        ]
+        for i in range(2, 22):
+            lines.append(
+                f"[{i}] Author{i}, A. (2020). \"Title number {i} for fallback.\" "
+                f"Journal of Testing, {i}(1), 1-10."
+            )
+        text = "\n".join(lines)
+
+        # Act
+        result = citation_checker.check_citations(text)
+
+        # Assert — Semantic Scholar called at most 5 times.
+        assert len(ss_calls) <= citation_checker.MAX_TITLE_FALLBACK == 5
+        assert result["total_refs"] == 21
+
+    def test_blended_score_aggregates_dois_and_titles(self, monkeypatch):
+        # Arrange — 1 verified DOI + 1 verified title + 1 not_found title.
+        # Blended counts: verified = 2 (DOI + title), not_found = 1 (title).
+        # scorable = 1 verified_doi + 0 not_found_doi + 1 verified_title + 1 not_found_title = 3
+        # doi_score = 2/3 * 10 ≈ 6.7; blended with recency 6.0 → 0.8*6.7 + 0.2*6.0 ≈ 6.6
+        monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "verified")
+
+        ss_responses = iter(["verified", "not_found"])
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda title, ref_year="": next(ss_responses, "not_found"))
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines: {"recency_score": 6.0, "recent_ratio": 0.5,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+
+        text = (
+            "[1] Smith, J. (2020). \"DOI'd Paper.\" Journal of A. DOI: 10.1000/one\n"
+            "[2] Brown, K. (2021). \"Title-verified paper.\" Conf B, 1-10.\n"
+            "[3] Green, M. (2019). \"Unfindable paper.\" Conf C, 11-20."
+        )
+
+        # Act
+        result = citation_checker.check_citations(text)
+
+        # Assert — blended verified = 1 DOI + 1 title = 2.
+        assert result["verified"] == 2
+        assert result["not_found"] == 1
+        # Aggregated score: 0.8 * 6.7 + 0.2 * 6.0 ≈ 6.6
+        assert 6.4 <= result["score"] <= 6.8
