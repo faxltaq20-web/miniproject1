@@ -1,16 +1,16 @@
-# Graph Report - mini project  (2026-06-10)
+# Graph Report - mini project  (2026-06-14)
 
 ## Corpus Check
-- 89 files · ~101,974 words
+- 108 files · ~124,925 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1705 nodes · 1802 edges · 143 communities (111 shown, 32 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 68 edges (avg confidence: 0.82)
+- 2157 nodes · 2260 edges · 175 communities (140 shown, 35 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 68 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9c97e932`
+- Built from commit: `1023bec1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -148,18 +148,50 @@
 - [[_COMMUNITY_Community 138|Community 138]]
 - [[_COMMUNITY_Community 139|Community 139]]
 - [[_COMMUNITY_Community 140|Community 140]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 144|Community 144]]
+- [[_COMMUNITY_Community 145|Community 145]]
+- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 147|Community 147]]
+- [[_COMMUNITY_Community 148|Community 148]]
+- [[_COMMUNITY_Community 149|Community 149]]
+- [[_COMMUNITY_Community 150|Community 150]]
+- [[_COMMUNITY_Community 151|Community 151]]
+- [[_COMMUNITY_Community 152|Community 152]]
+- [[_COMMUNITY_Community 153|Community 153]]
+- [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
+- [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 160|Community 160]]
+- [[_COMMUNITY_Community 161|Community 161]]
+- [[_COMMUNITY_Community 162|Community 162]]
+- [[_COMMUNITY_Community 163|Community 163]]
+- [[_COMMUNITY_Community 164|Community 164]]
+- [[_COMMUNITY_Community 165|Community 165]]
+- [[_COMMUNITY_Community 166|Community 166]]
+- [[_COMMUNITY_Community 167|Community 167]]
+- [[_COMMUNITY_Community 168|Community 168]]
+- [[_COMMUNITY_Community 169|Community 169]]
+- [[_COMMUNITY_Community 170|Community 170]]
+- [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Conversation Log` - 44 edges
-2. `compress_sections()` - 22 edges
+2. `compress_sections()` - 23 edges
 3. `ResearchSense — Complete Project Research Document` - 18 edges
 4. `workflow` - 16 edges
 5. `Antigravity ReportLab PDF — Skill Guide` - 16 edges
-6. `Conversation - 2026-06-09 (Performance Optimization Session)` - 13 edges
-7. `All 4 Approaches — Full Specification` - 13 edges
-8. `_call_single_key()` - 12 edges
-9. `Functions List` - 12 edges
-10. `_call_llm_with_failover()` - 11 edges
+6. `check_citations()` - 15 edges
+7. `TestVerifyTitleSemanticScholar` - 15 edges
+8. `Verification Checklist` - 15 edges
+9. `_call_single_key()` - 13 edges
+10. `_call_llm_with_failover()` - 13 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `_generate_verdict_paragraph()` --calls--> `_call_llm_with_failover()`  [INFERRED]
@@ -183,15 +215,15 @@
 - **Phase Context Evolution** — 01_context_md, 02_context_md, 03_context_md, 04_context_md, 07_context_md [INFERRED 0.90]
 - **PDF Layout and Theming System** — report_generator_py, pdf_skill_md, platypus_hybrid_architecture [EXTRACTED 0.95]
 
-## Communities (143 total, 32 thin omitted)
+## Communities (175 total, 35 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
 Nodes (45): BytesIO, Flowable, _bar_color(), _build_citation_section(), _build_detected_sections(), _build_param_grid(), _build_story(), draw_cover() (+37 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.18
-Nodes (12): _call_llm_with_failover(), _call_single_key(), bool, int, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns r, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns, Call Gemini with one specific key. Retries on transient errors.     Returns raw (+4 more)
+Cohesion: 0.22
+Nodes (9): _call_llm_with_failover(), map_headings(), bool, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns r, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns, Try each Gemini key in order. If one key hits 429, rotate to next.     Returns (+1 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
@@ -206,8 +238,8 @@ Cohesion: 0.05
 Nodes (40): Assistant, Assistant, Assistant, Assistant, Assistant, Assistant, Assistant, Assistant (+32 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.09
-Nodes (31): check_citations(), _detect_duplicates(), _extract_author_year_refs(), _extract_dois(), _extract_title_from_ref(), _extract_year_from_ref(), bool, int (+23 more)
+Cohesion: 0.13
+Nodes (16): _extract_title_from_ref(), _extract_year_from_ref(), int, Area 7: Extract publication year from a reference line., Area 7: Extract publication year from a reference line., Verify reference titles against Semantic Scholar in parallel.      Extracts ti, Extract a paper title from a bibliography reference line.      Strategy:, Extract a paper title from a bibliography reference line.      Strategy: (+8 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.04
@@ -230,8 +262,8 @@ Cohesion: 0.10
 Nodes (20): Agent's Discretion, Canonical References, citation_checker.py output shape, CrossRef Validation, Deferred Ideas, Design Spec, DOI Extraction, External API (+12 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.23
-Nodes (11): _clean_heading(), detect_sections(), _is_heading_line(), bool, str, Strip markdown #, bold **, numbers, and whitespace to get pure heading text., Check if a line is a heading (markdown or short plain text)., Strip markdown #, bold **, numbers, roman numerals, and whitespace to get pure h (+3 more)
+Cohesion: 0.13
+Nodes (21): _apply_llm_mapping(), _clean_heading(), detect_sections(), _extract_all_headings(), _is_heading_line(), bool, str, Extract candidate section headings from the paper text in order.     Returns a (+13 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.28
@@ -338,8 +370,8 @@ Cohesion: 0.18
 Nodes (10): AI Analysis Engine, Citations & Validation, Core Pipeline, (None currently deferred), Out of Scope, Requirements: ResearchSense, Scoring & Reporting, Traceability (+2 more)
 
 ### Community 54 - "Community 54"
-Cohesion: 0.13
-Nodes (14): 🔬 Candidate Approaches (Research-Ready), 🧩 Formal Problem Definition, Phase 10: API Token Efficiency & Input Compression, Phase 1: Environment & PDF Parser, Phase 2: AI Analysis Engine, Phase 3: Citations & Scoring, Phase 4: Reporting & Web UI, Phase 5: Gemini 7-Layer AI Analysis Engine (+6 more)
+Cohesion: 0.11
+Nodes (17): 🔬 Candidate Approaches (Research-Ready), 🧩 Formal Problem Definition, Phase 10: API Token Efficiency & Input Compression, Phase 11: Improve the frontend UI, Phase 12: improve citation detection, Phase 13: refine citation verification logic, Phase 1: Environment & PDF Parser, Phase 2: AI Analysis Engine (+9 more)
 
 ### Community 55 - "Community 55"
 Cohesion: 0.22
@@ -371,7 +403,7 @@ Nodes (14): Execution Order, Phase 7 — Output Consistency and Overall Refineme
 
 ### Community 67 - "Community 67"
 Cohesion: 0.23
-Nodes (11): handleUploadedFile(), resetStepper(), resetUploadView(), runFakeStepperSequence(), runLivePaperAnalysis(), showToastNotification(), showView(), triggerDemoMode() (+3 more)
+Nodes (13): animateScore(), handleUploadedFile(), populateDashboardView(), resetStepper(), resetUploadView(), runFakeStepperSequence(), runLivePaperAnalysis(), showToastNotification() (+5 more)
 
 ### Community 68 - "Community 68"
 Cohesion: 0.14
@@ -489,6 +521,10 @@ Nodes (3): fetched_at, papers, total_papers
 Cohesion: 0.33
 Nodes (5): Artifacts & Code Modifications, Created Files, Summary: Web Frontend Dashboard, Verification & Telemetry Results, What Was Achieved
 
+### Community 110 - "Community 110"
+Cohesion: 0.04
+Nodes (44): 480px Breakpoint, Accordion Expansion, Artifacts This Phase Produces, Body Gradient, Citation Table, CSS Variable Fixes, Drop Zone Icon, Execution Order (+36 more)
+
 ### Community 111 - "Community 111"
 Cohesion: 0.10
 Nodes (20): 1. System Architecture & Dev Setup, 2. Interactive Application State Flow, 3.1 Pre-Flight Diagnostics (`GET /health`), 3.2 Paper Analysis Upload (`POST /analyze`), 3.3 Dynamic Report PDF Compiler (`POST /report`), 3. Backend REST API Endpoints Specification, 4.1 High-Fidelity Drag-and-Drop Dropzone, 4.2 Dynamic Multi-Stage Processing Stepper (+12 more)
@@ -530,16 +566,16 @@ Cohesion: 0.67
 Nodes (3): 9. Scoring Algorithm, Example Scoring Run, Weighted Average Formula
 
 ### Community 124 - "Community 124"
-Cohesion: 0.06
-Nodes (27): _compress_section(), _deduplicate_sentences(), _is_formula_line(), _normalize_whitespace(), bool, int, str, text_compressor.py — Lossless-semantic text compression for ResearchSense.  Appr (+19 more)
+Cohesion: 0.05
+Nodes (34): _compress_section(), _deduplicate_sentences(), _is_formula_line(), _normalize_whitespace(), bool, int, str, text_compressor.py — Lossless-semantic text compression for ResearchSense.  Appr (+26 more)
 
 ### Community 125 - "Community 125"
 Cohesion: 0.05
 Nodes (44): citations, flagged_dois, flagged_items, issues, not_found, score, suggestions, total_refs (+36 more)
 
 ### Community 126 - "Community 126"
-Cohesion: 0.07
-Nodes (26): compress_sections(), Compress all paper sections using Approach A: Structured Normalization.      App, main(), str, validate_compression.py — Validation Harness for Phase 10 Approach A.  Measures:, Load section-like dict from a cached paper JSON if it has 'sections' key., Run compression on all sample papers, print per-section and overall stats., Compare Gemini scores on original vs. compressed sections.     REQUIRES active G (+18 more)
+Cohesion: 0.06
+Nodes (27): compress_sections(), Compress all paper sections using Approach A: Structured Normalization.      App, Compress all paper sections using Approach A: Structured Normalization.      App, main(), str, validate_compression.py — Validation Harness for Phase 10 Approach A.  Measures:, Load section-like dict from a cached paper JSON if it has 'sections' key., Run compression on all sample papers, print per-section and overall stats. (+19 more)
 
 ### Community 127 - "Community 127"
 Cohesion: 0.08
@@ -554,60 +590,172 @@ Cohesion: 0.12
 Nodes (15): 1. Fallback Scan Never Triggers (PRIMARY CAUSE), 2. Missing Keywords in SECTION_KEYWORDS, 3. Non-Standard Section Names, 4. `_clean_heading` Doesn't Handle All Formats, 5. `_is_heading_line` Too Permissive, All 90 Tests Pass ✅, Data Collected, Finding: BUG IS FIXED (+7 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.18
-Nodes (14): analyze_paper(), _get_cache_key(), _load_cache(), str, gemini_analyzer.py — Multi-key Gemini LLM client with automatic key rotation., Generate a short hash key from the assembled paper text., Load cached analysis result if it exists., Run all 4 analysis layers in a SINGLE LLM call.     (The 5th layer — Citations — (+6 more)
+Cohesion: 0.14
+Nodes (16): analyze_paper(), _get_cache_key(), _load_cache(), str, Generate a short hash key from the assembled paper text., Load cached analysis result if it exists., Run all 4 analysis layers in a SINGLE LLM call.     (The 5th layer — Citations —, Save analysis result to cache. (+8 more)
 
 ### Community 131 - "Community 131"
 Cohesion: 0.15
 Nodes (13): Assistant, Assistant, Assistant, Assistant, Assistant, Conversation - 2026-06-09 (Performance Optimization Session), Summary, Test Results (+5 more)
 
 ### Community 132 - "Community 132"
-Cohesion: 0.18
-Nodes (10): compress_stats(), generate_report(), Accept the full /analyze JSON response body and return a downloadable PDF., Accept the full /analyze JSON response body and return a downloadable PDF., Accept the full /analyze JSON response body and return a downloadable PDF., Diagnostic endpoint: returns the current COMPRESSION_MODE setting and     wheth, Health check endpoint., Health check endpoint. (+2 more)
+Cohesion: 0.15
+Nodes (12): compress_stats(), generate_report(), Accept the full /analyze JSON response body and return a downloadable PDF., Accept the full /analyze JSON response body and return a downloadable PDF., Accept the full /analyze JSON response body and return a downloadable PDF., Accept the full /analyze JSON response body and return a downloadable PDF., Diagnostic endpoint: returns the current COMPRESSION_MODE setting and     wheth, Diagnostic endpoint: returns the current COMPRESSION_MODE setting and     wheth (+4 more)
 
 ### Community 133 - "Community 133"
-Cohesion: 0.20
-Nodes (10): _call_gemini(), clean_json_text(), Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry w, Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry, Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry, Strip markdown code block formatting if present., Call Gemini with key rotation and structured JSON output (Area 2).     Uses SYS, Strip markdown code block formatting if present. (+2 more)
+Cohesion: 0.17
+Nodes (12): _call_gemini(), clean_json_text(), Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry w, Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry, Call Gemini with key rotation. Parse JSON response.     On invalid JSON, retry, Strip markdown code block formatting if present., Strip markdown code block formatting if present., Call Gemini with key rotation and structured JSON output (Area 2).     Uses SYS (+4 more)
 
 ### Community 134 - "Community 134"
-Cohesion: 0.22
-Nodes (9): check_api_health(), Lightweight connectivity test for all loaded Gemini API keys.     Tests each key, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, health_check(), Comprehensive health check — tests Gemini API keys, CrossRef, and Semantic Schol, Comprehensive health check — tests Gemini API keys, CrossRef, and Semantic Schol (+1 more)
+Cohesion: 0.20
+Nodes (10): check_api_health(), Lightweight connectivity test for all loaded Gemini API keys.     Tests each key, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, Lightweight connectivity test for all loaded Gemini API keys.     Tests each ke, health_check(), Comprehensive health check — tests Gemini API keys, CrossRef, and Semantic Schol (+2 more)
 
 ### Community 135 - "Community 135"
-Cohesion: 0.25
-Nodes (8): generate_verdict(), float, Generate a 2-3 sentence verdict paragraph using the LLM.     Falls back to a te, analyze_paper(), Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay, Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay, Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay, UploadFile
+Cohesion: 0.05
+Nodes (38): 1.1 Existing Token System (Preserved Exactly), 1.2 New: Body Radial Gradient (ADD to body), 1.3 New: Grade-Based Color Classes for `.grade-badge`, 1.4 New: Gauge Stroke Color Ranges, 1.5 New: UNREACHABLE Citation Badge Color, 1. Color & Theming, 2.1 Existing Font Stack (Preserved), 2.2 New: Layer Weight Chip Typography (+30 more)
 
 ### Community 136 - "Community 136"
 Cohesion: 0.33
 Nodes (5): diagnose_doi_backtick(), diagnose_section_detection(), Diagnostic script for Issue 1 (Section Detection) and Issue 2 (DOI Backtick Bug), Test the DOI backtick fix with various edge cases., Detailed section detection diagnosis for a single paper.
 
 ### Community 137 - "Community 137"
-Cohesion: 0.40
-Nodes (5): _parse_retry_delay(), Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error.
+Cohesion: 0.33
+Nodes (6): _parse_retry_delay(), Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error., Extract suggested retry delay (seconds) from a Gemini API error.
 
 ### Community 138 - "Community 138"
 Cohesion: 0.67
 Nodes (3): Assistant, Conversation — 2026-06-07 13:30 IST, User
 
+### Community 143 - "Community 143"
+Cohesion: 0.07
+Nodes (28): 1.1 What Exists and Works, 1.2 Design System Already Implemented, 1.3 What Is Missing or Underdone (Identified Gaps), 1. Current Frontend State Analysis, 2. Backend API Contract, 3. Design Spec Findings, 4. UI Improvement Opportunities, 5.1 CSS Fixes (style.css) (+20 more)
+
+### Community 144 - "Community 144"
+Cohesion: 0.08
+Nodes (23): issues, score, suggestions, issues, score, suggestions, layer_details, clarity_writing (+15 more)
+
+### Community 145 - "Community 145"
+Cohesion: 0.08
+Nodes (23): issues, score, suggestions, issues, score, suggestions, layer_details, clarity_writing (+15 more)
+
+### Community 146 - "Community 146"
+Cohesion: 0.08
+Nodes (23): issues, score, suggestions, issues, score, suggestions, layer_details, clarity_writing (+15 more)
+
+### Community 147 - "Community 147"
+Cohesion: 0.22
+Nodes (8): Artifacts, Phase 11 Summary: Improve the Frontend UI, Verification Notes, Wave 1 + Wave 3 — CSS (8 changes to style.css), Wave 2 — HTML (1 change to index.html), Wave 4 — JS Bug Fixes (3 fixes to app.js), Wave 5 — JS Enhancements (6 additions to app.js), What Was Built
+
+### Community 148 - "Community 148"
+Cohesion: 0.29
+Nodes (7): _call_single_key(), int, Call Gemini with one specific key. Retries on transient errors.     Returns raw, Call Gemini with one specific key. Retries on transient errors.     Returns raw, Call Gemini with one specific key. Retries on transient errors.     Returns raw, Call Gemini with one specific key. Retries on transient errors.     Returns raw, Call Gemini with one specific key. Retries on transient errors.     Returns raw
+
+### Community 149 - "Community 149"
+Cohesion: 0.40
+Nodes (4): gemini_analyzer.py — Multi-key Gemini LLM client with automatic key rotation., # NOTE: "references" is intentionally excluded here — it is handled, # NOTE: methodology is always protected from compression — technical evidence, # NOTE: "references" is intentionally excluded here — it is handled
+
+### Community 150 - "Community 150"
+Cohesion: 0.08
+Nodes (23): issues, score, suggestions, issues, score, suggestions, layer_details, clarity_writing (+15 more)
+
+### Community 151 - "Community 151"
+Cohesion: 0.10
+Nodes (20): Anti-Patterns Found, Behavioral Spot-Checks, Commit Verification, Cross-Phase Regression Check, Detailed Verification, Gaps Summary, Goal Achievement, Key Link Verification (+12 more)
+
+### Community 152 - "Community 152"
+Cohesion: 0.10
+Nodes (19): Accomplishments, Auto-fixed Issues, Commit Verification, Decisions Made, Dependency graph, Deviations from Plan, File Existence Verification, Files Created/Modified (+11 more)
+
+### Community 153 - "Community 153"
+Cohesion: 0.14
+Nodes (13): 1. Identified Issues, 2. Technical Solutions, A. Refined Section Detector (`section_detector.py`), A. Section Detection Truncation, B. Column-Sorted PDF Extraction (`pdf_parser.py`), B. Multi-Column Layout Scrambling, C. Combined Labeled & Standalone DOI Search (`citation_checker.py`), C. Labeled vs. Standalone DOI Mutual Exclusion (+5 more)
+
+### Community 155 - "Community 155"
+Cohesion: 0.20
+Nodes (9): Affected Files, Context, Execution Plan, Phase 12: Improve Citation Detection — PLAN.md, Plan 1: Section Detector Refinements (`section_detector.py`), Plan 2: Column-Sorted PDF Extraction (`pdf_parser.py`), Plan 3: Citation Checker Revisions (`citation_checker.py`), Plan 4: Verification and Unit Testing (`tests/`) (+1 more)
+
+### Community 156 - "Community 156"
+Cohesion: 0.22
+Nodes (8): Canonical References, Citation Checker, Implementation Decisions, PDF Parsing, Phase 12: Improve Citation Detection - Context, Phase Boundary, Section Detector Heuristics, Specific Ideas
+
+### Community 157 - "Community 157"
+Cohesion: 0.22
+Nodes (9): generate_verdict(), float, Generate a 2-3 sentence verdict paragraph using the LLM.     Falls back to a te, Generate a 2-3 sentence verdict paragraph using the LLM.     Falls back to a te, analyze_paper(), Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay, Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay, Core processing endpoint.     Accepts a research paper PDF, runs the full 5-lay (+1 more)
+
+### Community 158 - "Community 158"
+Cohesion: 0.25
+Nodes (7): Affected Files, Context, Execution Plan, Phase 13: Refine Citation Verification Logic — PLAN.md, Plan 1: Citation Checker scoring & loop refactor (`citation_checker.py`), Plan 2: Verification and Unit Testing (`tests/`), Verification Criteria
+
+### Community 159 - "Community 159"
+Cohesion: 0.20
+Nodes (10): check_citations(), Score how current the reference list is based on publication years.     Recent, Score how current the reference list is based on publication years.     Recent, Score how current the reference list is based on publication years.     Recent, Extract DOIs from the references section, validate each against CrossRef,     d, Area 7: Extract DOIs from the references section, validate each against CrossRef, Area 7: Extract DOIs from the references section, validate each against CrossRef, Area 7: Unified per-reference validation with DOI-first / title-fallback. (+2 more)
+
+### Community 160 - "Community 160"
+Cohesion: 0.33
+Nodes (6): _extract_dois(), Extract DOIs from references text using strict prefix matching only.     Return, Area 7: Extract DOIs from references text using both labeled and standalone patt, Area 7: Extract DOIs from references text using both labeled and standalone patt, Area 7: Extract DOIs from references text using both labeled and standalone, Area 7: Extract DOIs from references text using both labeled and standalone
+
+### Community 162 - "Community 162"
+Cohesion: 0.29
+Nodes (6): Canonical References, Citation Checker Scoring & Validation Loop, Implementation Decisions, Phase 13: Refine Citation Verification Logic - Context, Phase Boundary, Specific Ideas
+
+### Community 163 - "Community 163"
+Cohesion: 0.40
+Nodes (4): Verify an ArXiv paper ID exists via the public ArXiv Atom API.     Free, no aut, Verify an ArXiv paper ID exists via the public ArXiv Atom API.     Free, no aut, Verify an ArXiv paper ID exists via the public ArXiv Atom API.     Free, no aut, _verify_arxiv_id()
+
+### Community 164 - "Community 164"
+Cohesion: 0.33
+Nodes (5): 1. Analysis of the Score Drop, 2. Refined Solution Architecture, A. Bibliography Sampling Bias, B. Semantic Scholar API Rate Limiting (HTTP 429), Phase 13 Research: Refine Citation Verification Logic
+
+### Community 165 - "Community 165"
+Cohesion: 0.18
+Nodes (11): bool, Query Semantic Scholar API to verify whether a paper title exists.      Uses d, Area 7: Search CrossRef Works API for a reference by bibliographic query.     R, Area 7: Query Semantic Scholar API to verify whether a paper title exists., Area 7: Search CrossRef Works API for a reference by bibliographic query.     R, Area 7: Search CrossRef Works API for a reference by bibliographic query.     R, Area 7: Search CrossRef Works API for a reference by bibliographic query.     R, Area 7: Query Semantic Scholar API to verify whether a paper title exists. (+3 more)
+
+### Community 167 - "Community 167"
+Cohesion: 0.25
+Nodes (9): _clean_doi_parentheses(), _detect_duplicates(), str, Detect duplicate references in the references section.     Returns a list of fl, Detect duplicate references in the references section.     Returns a list of fl, Detect duplicate references in the references section.     Returns a list of fl, Strip trailing `)` or `]` from a DOI only when they are unmatched.      Many D, Strip trailing `)` or `]` from a DOI only when they are unmatched.      Many D (+1 more)
+
+### Community 168 - "Community 168"
+Cohesion: 0.33
+Nodes (6): _extract_author_year_refs(), Extract author-year reference entries from the full paper text.     Returns lis, Extract author-year reference entries from the full paper text.     Returns lis, Extract author-year reference entries from the full paper text.     Returns lis, Extract author-year reference entries from the full paper text.     Returns lis, Extract author-year reference entries from the full paper text.     Returns lis
+
+### Community 169 - "Community 169"
+Cohesion: 0.20
+Nodes (9): Commits, Deviations from PLAN.md, Files modified, `MAIN_PROJECT/citation_checker.py`, `MAIN_PROJECT/tests/test_citation_checker.py`, Phase 13: Refine Citation Verification Logic — SUMMARY, Test results, Verification (deferred to user) (+1 more)
+
+### Community 170 - "Community 170"
+Cohesion: 0.33
+Nodes (6): Validate a single DOI against CrossRef REST API.      Returns:         "verif, Validate a single DOI against CrossRef REST API.     Retries once on 429/503 er, Validate a single DOI against CrossRef REST API.     Retries once on 429/503 er, Validate a single DOI against CrossRef REST API.     Retries once on 429/503 er, Validate a single DOI against CrossRef REST API.     Retries once on 429/503 er, _validate_doi()
+
+### Community 171 - "Community 171"
+Cohesion: 0.22
+Nodes (8): 1. Global DOI Sweep verification, 2. Capped Title Fallback verification, 3. Blended Scoring verification, 4. Unit Test Suite Execution, Current Test, Gaps, Summary, Tests
+
+### Community 172 - "Community 172"
+Cohesion: 0.29
+Nodes (3): Unit tests for citation_checker.py — Phase 3 + Phase 7 Plan 2 Tests cover: _ext, Phase 13: DOIs are extracted from the ENTIRE references block (not just     the, TestPhase13GlobalSweep
+
+### Community 173 - "Community 173"
+Cohesion: 0.50
+Nodes (4): _extract_arxiv_ids(), Extract ArXiv paper IDs from the references section.     Returns a deduplicated, Extract ArXiv paper IDs from the references section.     Returns a deduplicated, Extract ArXiv paper IDs from the references section.     Returns a deduplicated
+
 ## Knowledge Gaps
-- **926 isolated node(s):** `final_score`, `grade`, `Abstract`, `Introduction`, `Related Work` (+921 more)
+- **1173 isolated node(s):** `final_score`, `grade`, `Abstract`, `Introduction`, `Related Work` (+1168 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **32 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **35 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `compress_sections()` connect `Community 126` to `Community 124`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `_call_llm_with_failover()` connect `Community 1` to `Community 0`, `Community 130`, `Community 133`, `Community 135`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `_generate_verdict_paragraph()` connect `Community 0` to `Community 1`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
+  _High betweenness centrality (0.002) - this node is a cross-community bridge._
+- **Why does `_call_gemini()` connect `Community 133` to `Community 1`, `Community 130`, `Community 149`?**
+  _High betweenness centrality (0.001) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `compress_sections()` (e.g. with `run_reduction_analysis()` and `run_score_drift_analysis()`) actually correct?**
   _`compress_sections()` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `final_score`, `grade`, `Abstract` to the rest of the system?**
-  _1088 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1403 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.05263157894736842 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+- **Should `Community 4` be split into smaller, more focused modules?**
+  _Cohesion score 0.08669354838709678 - nodes in this community are weakly interconnected._
