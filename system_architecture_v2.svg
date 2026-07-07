@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 750" width="1300" height="750" style="background-color:#ffffff;">
+  <!-- Definitions for Markers (Arrowheads) -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#000000" />
+    </marker>
+  </defs>
+
+  <!-- Title of the Diagram -->
+  <text x="650" y="25" text-anchor="middle" font-family="'Times New Roman', Times, serif" font-size="18px" font-weight="bold" fill="#000000">
+    ResearchSense — System Architecture Diagram
+  </text>
+  
+  <!-- 1. Actor: User (Browser) -->
+  <rect x="550" y="40" width="200" height="50" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="650" y="69" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">User (Browser)</text>
+
+  <!-- Arrow User -> Client-Side Box -->
+  <line x1="650" y1="90" x2="650" y2="140" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="658" y="120" font-family="'Times New Roman', Times, serif" font-size="11px" fill="#000000">Interact with Dashboard</text>
+
+  <!-- 2. Client-Side Web Application Outer Box -->
+  <rect x="370" y="140" width="560" height="90" rx="4" ry="4" fill="#fafafa" stroke="#000000" stroke-width="1.5" />
+  <text x="650" y="160" font-family="'Times New Roman', Times, serif" font-size="12px" font-weight="bold" text-anchor="middle" fill="#000000">Client-Side Web Application (vanilla JS, app.js, dark-mode UI)</text>
+
+  <!-- Nested: Upload Interface -->
+  <rect x="400" y="175" width="200" height="45" rx="3" ry="3" fill="#ffffff" stroke="#000000" stroke-width="1.2" />
+  <text x="500" y="202" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Upload Interface</text>
+
+  <!-- Nested: Report Dashboard / Viewer -->
+  <rect x="680" y="175" width="220" height="45" rx="3" ry="3" fill="#ffffff" stroke="#000000" stroke-width="1.2" />
+  <text x="790" y="202" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Report Dashboard / Viewer</text>
+
+  <!-- Arrow Upload Interface -> PDF Parser (via pipeline entry) -->
+  <path d="M 500 220 L 500 260 L 132.5 260 L 132.5 420" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="316" y="252" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Upload PDF</text>
+
+  <!-- 3. Backend Processing Server Dashed Box -->
+  <rect x="40" y="290" width="1230" height="300" fill="none" stroke="#555555" stroke-width="1.5" stroke-dasharray="6,4" />
+  <text x="60" y="315" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" font-style="italic" fill="#555555">Backend Processing Server (main.py / run_local.py)</text>
+
+  <!-- 3.1 PDF Parser -->
+  <rect x="60" y="420" width="145" height="60" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="132.5" y="447" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">PDF Parser</text>
+  <text x="132.5" y="463" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(pdf_parser.py / pymupdf4llm)</text>
+
+  <!-- Arrow PDF Parser -> Gemini Analyzer -->
+  <line x1="205" y1="450" x2="315" y2="450" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="260" y="440" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Extract Text</text>
+
+  <!-- 3.2 Gemini Analyzer -->
+  <rect x="315" y="420" width="145" height="60" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="387.5" y="447" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Gemini Analyzer</text>
+  <text x="387.5" y="463" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(gemini_analyzer.py / API)</text>
+
+  <!-- Arrow Gemini Analyzer -> Scoring Engine -->
+  <line x1="460" y1="450" x2="570" y2="450" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="515" y="440" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">API Call</text>
+
+  <!-- 3.3 Scoring Engine -->
+  <rect x="570" y="420" width="145" height="60" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="642.5" y="447" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Scoring Engine</text>
+  <text x="642.5" y="463" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(scoring.py)</text>
+
+  <!-- Arrow Scoring Engine -> Citation Checker -->
+  <line x1="715" y1="450" x2="825" y2="450" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="770" y="440" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Return Analysis</text>
+
+  <!-- 3.4 Citation Checker -->
+  <rect x="825" y="420" width="145" height="60" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="897.5" y="447" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Citation Checker</text>
+  <text x="897.5" y="463" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(citation_checker.py)</text>
+
+  <!-- Arrow Citation Checker -> Report Generator -->
+  <line x1="970" y1="450" x2="1080" y2="450" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="1025" y="440" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Verify References</text>
+
+  <!-- 3.5 Report Generator -->
+  <rect x="1080" y="420" width="170" height="60" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="1165" y="447" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">Report Generator</text>
+  <text x="1165" y="463" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(report_generator.py / PLATYPUS)</text>
+
+  <!-- 3.6 JSON Cache Store -->
+  <rect x="550" y="515" width="200" height="50" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="650" y="538" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#000000">JSON Cache Store</text>
+  <text x="650" y="552" font-family="'Times New Roman', Times, serif" font-size="10px" text-anchor="middle" fill="#555555">(Local File Cache)</text>
+
+  <!-- Bidirectional Connection PDF Parser <-> Cache Store -->
+  <path d="M 132.5 480 L 132.5 540 L 550 540" fill="none" stroke="#000000" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <text x="341.25" y="533" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Hash-keyed cache lookup / write</text>
+
+  <!-- Bidirectional Connection Report Generator <-> Cache Store -->
+  <path d="M 1165 480 L 1165 540 L 750 540" fill="none" stroke="#000000" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <text x="957.5" y="533" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Hash-keyed cache lookup / write</text>
+
+  <!-- 4. Generated PDF Report Box -->
+  <rect x="530" y="640" width="240" height="50" rx="4" ry="4" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+  <text x="650" y="669" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Generated PDF Report</text>
+
+  <!-- Arrow Report Generator -> Generated PDF Report -->
+  <path d="M 1165 480 L 1165 665 L 770 665" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="967.5" y="658" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#000000">Build Report</text>
+
+  <!-- Return Path Generated PDF Report -> User (Browser) -->
+  <path d="M 530 665 L 20 665 L 20 65 L 550 65" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="285" y="58" font-family="'Times New Roman', Times, serif" font-size="12px" font-weight="bold" text-anchor="middle" fill="#000000">Download Report</text>
+</svg>

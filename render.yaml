@@ -1,0 +1,47 @@
+# render.yaml — Render.com deployment config
+# Deploy at: https://dashboard.render.com → New → Web Service → Connect GitHub
+# Docs: https://render.com/docs/render-yaml
+
+services:
+  - type: web
+    name: researchsense
+    runtime: python
+    rootDir: MAIN_PROJECT          # build context is the MAIN_PROJECT/ folder
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free                     # change to "starter" ($7/mo) to eliminate cold starts
+
+    envVars:
+      # ── Gemini API Keys ─────────────────────────────────────────────
+      # Set these in the Render dashboard under Environment → Secret Files
+      # or paste values directly. NEVER hardcode real keys in this file.
+      - key: GEMINI_KEY_1
+        sync: false    # marks it as a secret — set value in Render dashboard
+
+      - key: GEMINI_KEY_2
+        value: ""
+
+      - key: GEMINI_KEY_3
+        value: ""
+
+      - key: GEMINI_KEY_4
+        value: ""
+
+      - key: GEMINI_KEY_5
+        value: ""
+
+      # ── Model ────────────────────────────────────────────────────────
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+
+      # ── Text Compression (Phase 10) ──────────────────────────────────
+      - key: COMPRESSION_MODE
+        value: light
+
+      # ── Analysis Result Cache ────────────────────────────────────────
+      - key: CACHE_ENABLED
+        value: "true"
+
+      # ── Contact ──────────────────────────────────────────────────────
+      - key: CONTACT_EMAIL
+        value: your-email@example.com

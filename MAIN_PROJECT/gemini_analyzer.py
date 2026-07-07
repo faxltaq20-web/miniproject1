@@ -103,9 +103,10 @@ RESPONSE_SCHEMA = {
         "clarity_writing": LAYER_SCHEMA_TEMPLATE,
         "methodology_rigor": LAYER_SCHEMA_TEMPLATE,
         "evidence_claims": LAYER_SCHEMA_TEMPLATE,
+        "discipline": {"type": "STRING"},
     },
     "required": ["structure_sections", "clarity_writing",
-                  "methodology_rigor", "evidence_claims"],
+                  "methodology_rigor", "evidence_claims", "discipline"],
 }
 
 # ─── Heading Map Schema (Tier 2 dynamic section detection) ───────────────────
@@ -191,8 +192,19 @@ Return a JSON object with exactly this structure:
   "structure_sections": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
   "clarity_writing": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
   "methodology_rigor": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
-  "evidence_claims": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]}
-}"""
+  "evidence_claims": {"score": <0-10>, "issues": ["issue1"], "suggestions": ["fix1"]},
+  "discipline": "<one of: computer_science | physics | mathematics | medicine_biology | chemistry | humanities_social | other>"
+}
+
+DISCIPLINE CLASSIFICATION: Pick the single discipline that best matches the paper's
+primary contribution. Use "other" only when no listed discipline applies. Examples:
+- An LLM / vision / systems paper → "computer_science"
+- A condensed matter / quantum / astrophysics paper → "physics"
+- A pure proof or combinatorics paper → "mathematics"
+- A clinical trial or genomics study → "medicine_biology"
+- An organic synthesis or materials paper → "chemistry"
+- A sociology, history, philosophy, economics paper → "humanities_social"
+"""
 
 # ─── Figure / Table Caption Extractor ────────────────────────────────────────
 # Extracts captions like "Figure 3: ..." or "Table 2. ..." from section text.
@@ -267,18 +279,6 @@ def _save_cache(key: str, result: dict):
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-
-def clean_json_text(text: str) -> str:
-    """Strip markdown code block formatting if present."""
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    elif text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
-
 
 def _parse_retry_delay(err_str: str) -> float:
     """Extract suggested retry delay (seconds) from a Gemini API error."""
@@ -400,6 +400,42 @@ def _call_gemini(prompt: str) -> dict:
 
 # ─── Paper Analysis (single-prompt, all 4 layers) ────────────────────────────
 
+# Phase 14 (P5): Score calibration.
+# Gemini's outputs cluster heavily in 6-8 even when papers differ markedly. We
+# stretch that band around the rubric midpoint (7.0) so good papers visibly
+# pull ahead of mediocre ones in the final 0-100 score, while leaving the very
+# top/bottom alone. Stretch factor tuned empirically against the rubric:
+#   raw 6  → 5.5     raw 7  → 7.0     raw 8  → 8.5
+#   raw 5  → 4.0     raw 9  → 10.0
+# Citations layer is computed by citation_checker.py with its own scale and is
+# intentionally NOT calibrated.
+_CALIBRATION_CENTER = 7.0
+_CALIBRATION_STRETCH = 1.5
+_CALIBRATED_LAYERS = (
+    "structure_sections", "clarity_writing",
+    "methodology_rigor", "evidence_claims",
+)
+
+
+def _calibrate_raw_scores(layer_scores: dict) -> dict:
+    """
+    Spread the LLM's narrow 6-8 score band around 7.0 using a clipped linear
+    stretch. Score 0 stays at 0 (analysis-failed sentinel), citations layer
+    is passed through untouched.
+    """
+    calibrated = dict(layer_scores)
+    for key in _CALIBRATED_LAYERS:
+        if key not in calibrated:
+            continue
+        raw = float(calibrated[key])
+        if raw <= 0.0:
+            continue  # preserve "section missing" sentinel
+        adjusted = _CALIBRATION_CENTER + (raw - _CALIBRATION_CENTER) * _CALIBRATION_STRETCH
+        calibrated[key] = round(max(0.0, min(10.0, adjusted)), 1)
+    return calibrated
+
+
+# <<<< SCREENSHOT THIS FUNCTION for Fig 7.2.2 >>>>
 def analyze_paper(sections: dict) -> dict:
     """
     Run all 4 analysis layers in a SINGLE LLM call.
@@ -583,9 +619,21 @@ def analyze_paper(sections: dict) -> dict:
     }
     layer_scores["citations"] = 0.0
 
+    # Phase 14 (P2): discipline classification surfaced for discipline-adaptive
+    # weighting in scoring.py. Defaults to "computer_science" when missing.
+    discipline = raw.get("discipline", "computer_science") if isinstance(raw, dict) else "computer_science"
+    if discipline not in {"computer_science", "physics", "mathematics",
+                          "medicine_biology", "chemistry", "humanities_social", "other"}:
+        discipline = "computer_science"
+
+    # Phase 14 (P5): calibrate the LLM's narrow 6-8 clustering before downstream
+    # weighting. Citations layer is filled in later and excluded from calibration.
+    layer_scores = _calibrate_raw_scores(layer_scores)
+
     result = {
         "layer_details": layer_details,
         "layer_scores": layer_scores,
+        "discipline": discipline,
     }
 
     # ── Area 5: Save to cache ───────────────────────────────────────────

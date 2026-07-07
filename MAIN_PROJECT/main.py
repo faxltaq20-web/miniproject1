@@ -4,7 +4,8 @@ import tempfile
 import requests
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -21,9 +22,10 @@ import scoring          # Phase 2
 import citation_checker # Phase 3
 import report_generator # Phase 4
 
-# Phase 10: Text Compression
+# Phase 10: Text Compression — only used here for the /compress-stats diagnostic
+# endpoint. The actual compression runs inside gemini_analyzer.analyze_paper.
 try:
-    from text_compressor import compress_sections as _compress_sections
+    import text_compressor  # noqa: F401
     _COMPRESSOR_AVAILABLE = True
 except ImportError:
     _COMPRESSOR_AVAILABLE = False
@@ -132,6 +134,10 @@ async def analyze_paper(file: UploadFile = File(...)):
                 }
             )
 
+        # Extract DOIs from PDF hyperlink annotations (invisible in text).
+        # Many publishers embed DOIs as clickable links but don't print them.
+        hyperlink_dois = pdf_parser.extract_hyperlink_dois(tmp_file_path)
+
         # Detect sections — Tier 1 (keyword) with Tier 2 (LLM) fallback for non-standard papers
         detection_result = section_detector.detect_sections(
             text, llm_mapper=gemini_analyzer.map_headings
@@ -153,7 +159,8 @@ async def analyze_paper(file: UploadFile = File(...)):
                 asyncio.to_thread(
                     citation_checker.check_citations,
                     sections.get("references", ""),
-                    full_text=text
+                    full_text=text,
+                    pdf_hyperlink_dois=hyperlink_dois,
                 ),
             )
         except Exception as e:
@@ -170,8 +177,9 @@ async def analyze_paper(file: UploadFile = File(...)):
             "suggestions": citation_result["suggestions"],
         }
 
-        # Calculate weighted confidence score
-        score_result = scoring.calculate_score(analysis["layer_scores"])
+        # Calculate weighted confidence score using discipline-adaptive weights
+        discipline = analysis.get("discipline", "computer_science")
+        score_result = scoring.calculate_score(analysis["layer_scores"], discipline)
 
         # Generate verdict paragraph (moved from report_generator for parallelization)
         verdict_text = generate_verdict(
@@ -180,6 +188,11 @@ async def analyze_paper(file: UploadFile = File(...)):
             analysis["layer_scores"],
             analysis["layer_details"],
         )
+
+        # Compute authoritative per-layer max marks in Python so the frontend
+        # never needs to replicate the rounding logic independently.
+        active_weights = scoring.DISCIPLINE_WEIGHTS.get(score_result["discipline"], scoring.WEIGHTS)
+        layer_max_marks = {k: int(round(v * 100)) for k, v in active_weights.items()}
 
         # Return enriched response
         return JSONResponse(content={
@@ -191,6 +204,8 @@ async def analyze_paper(file: UploadFile = File(...)):
             "layer_details": analysis["layer_details"],
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
+            "discipline": score_result["discipline"],
+            "layer_max_marks": layer_max_marks,
             "verdict_text": verdict_text,
             "citation_result": {
                 "total_refs": citation_result.get("total_refs", 0),
@@ -229,6 +244,7 @@ async def generate_report(analysis: dict):
             }),
             detected_sections=analysis.get("detected_sections", {}),
             verdict_text=analysis.get("verdict_text", None),
+            discipline=analysis.get("discipline"),
         )
     except Exception as e:
         raise HTTPException(
@@ -263,6 +279,18 @@ async def compress_stats():
             "aggressive": "light + formula/math line removal (~40-65% reduction)",
         }.get(mode, "Unknown mode"),
     })
+
+
+# ── Serve the frontend (MUST be last — after all API routes) ──────────────
+# Resolve path relative to this file so it works both locally and on Render.
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if _FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIR), html=True), name="static")
+else:
+    # Fallback: frontend may be co-located inside MAIN_PROJECT in some deploy setups
+    _FRONTEND_DIR_LOCAL = Path(__file__).resolve().parent / "frontend"
+    if _FRONTEND_DIR_LOCAL.exists():
+        app.mount("/", StaticFiles(directory=str(_FRONTEND_DIR_LOCAL), html=True), name="static")
 
 
 if __name__ == "__main__":

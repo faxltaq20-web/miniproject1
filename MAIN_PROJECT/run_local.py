@@ -27,10 +27,10 @@ import report_generator
 # Layer display names and weights for console output
 LAYER_DISPLAY = {
     "structure_sections": ("01 Structure & Sections", "20%"),
-    "clarity_writing":    ("02 Clarity & Writing",    "25%"),
-    "methodology_rigor":  ("03 Methodology Rigor",    "25%"),
+    "clarity_writing":    ("02 Clarity & Writing",    "22.5%"),
+    "methodology_rigor":  ("03 Methodology Rigor",    "22.5%"),
     "evidence_claims":    ("04 Evidence & Claims",    "20%"),
-    "citations":          ("05 Citations & References","10%"),
+    "citations":          ("05 Citations & References","15%"),
 }
 
 
@@ -91,6 +91,11 @@ def run_pipeline(pdf_path: str):
     for name, confidence in detected_sections.items():
         print(f"     ✓ {name} {confidence}%")
 
+    # Extract DOIs from PDF hyperlink annotations (invisible in text)
+    hyperlink_dois = pdf_parser.extract_hyperlink_dois(pdf_path)
+    if hyperlink_dois:
+        print(f"   ✓ Found {len(hyperlink_dois)} DOI(s) in PDF hyperlink annotations.")
+
     # ── Step 3 & 4: AI Analysis + Citation Check (parallel — Area 1) ─────
     _cmode = os.getenv("COMPRESSION_MODE", "light")
     print(f"⏳ [3-4/5] Running AI analysis + citation check in parallel... (compression={_cmode})")
@@ -100,7 +105,8 @@ def run_pipeline(pdf_path: str):
         citation_future = executor.submit(
             citation_checker.check_citations,
             sections.get("references", ""),
-            full_text=text
+            full_text=text,
+            pdf_hyperlink_dois=hyperlink_dois,
         )
 
         try:
@@ -125,7 +131,7 @@ def run_pipeline(pdf_path: str):
 
     # ── Step 5: Scoring & Report ──────────────────────────────────────
     print("⏳ [5/5] Calculating final grades and generating PDF report...")
-    score_result = scoring.calculate_score(analysis["layer_scores"])
+    score_result = scoring.calculate_score(analysis["layer_scores"], analysis.get("discipline", "computer_science"))
 
     # Build report buffer
     try:
@@ -136,7 +142,8 @@ def run_pipeline(pdf_path: str):
             final_score=score_result["final_score"],
             grade=score_result["grade"],
             citation_result=citation_result,
-            detected_sections=detected_sections
+            detected_sections=detected_sections,
+            discipline=score_result["discipline"],
         )
     except Exception as e:
         print(f"❌ Report generation failed: {e}")
@@ -158,6 +165,7 @@ def run_pipeline(pdf_path: str):
         json_data = {
             "final_score": score_result["final_score"],
             "grade": score_result["grade"],
+            "discipline": score_result["discipline"],
             "detected_sections": detected_sections,
             "citations": citation_result,
             "layer_scores": analysis["layer_scores"],
@@ -171,13 +179,15 @@ def run_pipeline(pdf_path: str):
         output_json_name = "None"
 
     # ── Results ───────────────────────────────────────────────────────
+    actual_weights = score_result.get("weights", scoring.WEIGHTS)
     print("\n" + "─" * 55)
-    print("  MULTI-LAYER ANALYSIS")
+    print(f"  MULTI-LAYER ANALYSIS (Discipline: {score_result['discipline'].replace('_', ' ').title()})")
     print("─" * 55)
-    for key, (display_name, weight) in LAYER_DISPLAY.items():
+    for key, (display_name, _) in LAYER_DISPLAY.items():
         raw_score = analysis["layer_scores"].get(key, 0)
         display_score = int(raw_score * 10)  # Convert 0-10 to 0-100
-        print(f"  {display_name:<30} {weight:>5}  {display_score:>3}")
+        weight_pct = f"{int(actual_weights.get(key, 0.0) * 100)}%"
+        print(f"  {display_name:<30} {weight_pct:>5}  {display_score:>3}")
     print("─" * 55)
 
     print(f"\n✅ ANALYSIS COMPLETE!")

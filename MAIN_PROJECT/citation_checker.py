@@ -31,11 +31,6 @@ DOI_STANDALONE = re.compile(
 # `10.1000/abc(123)`).
 TRAILING_JUNK = re.compile(r'[.,;:>\'\"\`\\\-\'\'\u2018\u2019\u201c\u201d]+$')
 
-# Pattern to extract author-year citations like "Smith & Lee, 2019" or "(Author, 2020)"
-AUTHOR_YEAR_PATTERN = re.compile(
-    r'([A-Z][a-z]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-z]+))?),?\s*\(?\s*(\d{4})\s*\)?'
-)
-
 # Area 7: Year extraction pattern
 YEAR_PATTERN = re.compile(r'\b(19\d{2}|20\d{2})\b')
 
@@ -48,7 +43,6 @@ ARXIV_PATTERN = re.compile(
 )
 
 CROSSREF_BASE = "https://api.crossref.org/works/{doi}"
-CROSSREF_SEARCH = "https://api.crossref.org/works"
 HEADERS = {
     # Polite pool header — gives CrossRef rate-limit headroom (50 req/sec)
     "User-Agent": "ResearchSense/1.0 (mailto:team@researchsense.dev)"
@@ -120,15 +114,6 @@ def _extract_year_from_ref(ref_line: str) -> str:
     return match.group(1) if match else ""
 
 
-def _extract_author_year_refs(text: str) -> list:
-    """
-    Extract author-year reference entries from the full paper text.
-    Returns list of tuples: (author_string, year).
-    """
-    matches = AUTHOR_YEAR_PATTERN.findall(text)
-    return [(author.strip(), year) for author, year in matches]
-
-
 def _extract_arxiv_ids(references_text: str) -> list:
     """
     Extract ArXiv paper IDs from the references section.
@@ -165,10 +150,42 @@ def _verify_arxiv_id(arxiv_id: str) -> str:
         return "unreachable"
 
 
-def _score_citation_recency(ref_lines: list) -> dict:
+def _extract_paper_publication_year(full_text: str) -> int | None:
+    """
+    Heuristically detect the paper's own publication year from its opening
+    pages. Scans the first ~4000 characters (cover + abstract zone) for
+    year-shaped tokens between 1950 and the current calendar year, and
+    returns the most-frequent candidate. Falls back to the latest plausible
+    year if no clear winner emerges. Returns None when no year is found.
+    """
+    if not full_text:
+        return None
+    import datetime
+    current_year = datetime.datetime.now().year
+    head = full_text[:4000]
+    candidates = []
+    for m in YEAR_PATTERN.finditer(head):
+        y = int(m.group(1))
+        if 1950 < y <= current_year:
+            candidates.append(y)
+    if not candidates:
+        return None
+    counts = Counter(candidates)
+    top_year, top_count = counts.most_common(1)[0]
+    # If ties exist, prefer the most recent — papers typically reference older
+    # work but cite their own year more uniquely.
+    tied = [y for y, c in counts.items() if c == top_count]
+    return max(tied) if len(tied) > 1 else top_year
+
+
+def _score_citation_recency(ref_lines: list, paper_year: int | None = None) -> dict:
     """
     Score how current the reference list is based on publication years.
-    Recent citations (≤3 years old) signal the authors surveyed recent work.
+    Recent citations (≤3 years old relative to the paper's publication year)
+    signal the authors surveyed recent work at the time of writing.
+
+    When paper_year is None, falls back to the current calendar year — this
+    preserves prior behavior for callers that don't pass full text.
 
     Returns:
         {"recency_score": float, "recent_ratio": float | None,
@@ -176,6 +193,7 @@ def _score_citation_recency(ref_lines: list) -> dict:
     """
     import datetime
     current_year = datetime.datetime.now().year
+    baseline_year = paper_year if paper_year else current_year
 
     years = []
     for line in ref_lines:
@@ -193,18 +211,22 @@ def _score_citation_recency(ref_lines: list) -> dict:
             "ref_years": [],
         }
 
-    recent = sum(1 for y in years if y >= current_year - 3)
+    recent = sum(1 for y in years if y >= baseline_year - 3)
     ratio = round(recent / len(years), 2)
 
+    baseline_label = (
+        f"last 3 years before paper ({baseline_year})"
+        if paper_year else "last 3 years"
+    )
     if ratio >= 0.35:
-        score, note = 10.0, f"{recent}/{len(years)} refs from last 3 years — excellent currency."
+        score, note = 10.0, f"{recent}/{len(years)} refs from {baseline_label} — excellent currency."
     elif ratio >= 0.20:
-        score, note = 8.0,  f"{recent}/{len(years)} refs from last 3 years — good currency."
+        score, note = 8.0,  f"{recent}/{len(years)} refs from {baseline_label} — good currency."
     elif ratio >= 0.08:
-        score, note = 6.0,  f"{recent}/{len(years)} refs from last 3 years — moderate currency."
+        score, note = 6.0,  f"{recent}/{len(years)} refs from {baseline_label} — moderate currency."
     else:
         score, note = 4.0,  (
-            f"Only {recent}/{len(years)} refs from last 3 years — "
+            f"Only {recent}/{len(years)} refs from {baseline_label} — "
             "literature survey may be outdated."
         )
 
@@ -290,48 +312,6 @@ def _extract_title_from_ref(ref_line: str) -> str:
             return title
 
     return ""
-
-
-def _search_crossref_works(query: str) -> dict:
-    """
-    Area 7: Search CrossRef Works API for a reference by bibliographic query.
-    Returns {"matched": bool, "title": str, "year": str} or None on failure.
-    """
-    try:
-        response = requests.get(
-            CROSSREF_SEARCH,
-            params={"query.bibliographic": query, "limit": 3},
-            headers=HEADERS,
-            timeout=TIMEOUT,
-        )
-        if response.status_code == 200:
-            items = response.json().get("message", {}).get("items", [])
-            if items:
-                return {
-                    "matched": True,
-                    "title": items[0].get("title", [""])[0],
-                    "year": str(items[0].get("published-print", {}).get("date-parts", [[None]])[0][0] or ""),
-                }
-        elif response.status_code in (429, 503):
-            time.sleep(1.0)
-            # Retry once
-            response = requests.get(
-                CROSSREF_SEARCH,
-                params={"query.bibliographic": query, "limit": 3},
-                headers=HEADERS,
-                timeout=TIMEOUT,
-            )
-            if response.status_code == 200:
-                items = response.json().get("message", {}).get("items", [])
-                if items:
-                    return {
-                        "matched": True,
-                        "title": items[0].get("title", [""])[0],
-                        "year": str(items[0].get("published-print", {}).get("date-parts", [[None]])[0][0] or ""),
-                    }
-    except requests.RequestException:
-        pass
-    return {"matched": False, "title": "", "year": ""}
 
 
 def _verify_title_semantic_scholar(title: str, ref_year: str = "") -> str:
@@ -470,7 +450,9 @@ def _validate_doi(doi: str) -> str:
     return "unreachable"
 
 
-def check_citations(references_text: str, full_text: str = "") -> dict:
+# <<<< SCREENSHOT THIS FUNCTION for Fig 7.2.3 >>>>
+def check_citations(references_text: str, full_text: str = "",
+                    pdf_hyperlink_dois: list = None) -> dict:
     """
     Area 7: Unified per-reference validation with DOI-first / title-fallback.
 
@@ -487,6 +469,10 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         references_text: raw text of the paper's references section.
         full_text: full paper text (currently unused — reserved for in-text
                    citation cross-referencing in a future phase).
+        pdf_hyperlink_dois: DOIs extracted from PDF hyperlink annotations
+                           (invisible in text). Merged into the DOI pool so
+                           papers that embed DOIs as clickable links (ACL,
+                           IEEE, Springer) get proper credit.
 
     Returns:
         {
@@ -523,10 +509,31 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
     ref_lines = [l.strip() for l in references_text.splitlines() if len(l.strip()) > 20]
     total_refs = max(len(ref_lines), 1)
 
+    # Phase 14: detect paper's own publication year from cover/abstract so
+    # recency is judged relative to when the paper was written, not "now".
+    paper_year = _extract_paper_publication_year(full_text)
+
     # Phase 13: global DOI sweep across the ENTIRE references block (capped at
     # MAX_DOIS=20). Removes the historic 15-line sampling bias that lost DOIs
     # buried below the top of a long bibliography.
     dois = _extract_dois(references_text)
+
+    # Merge DOIs extracted from PDF hyperlink annotations (invisible in text).
+    # Many academic publishers embed DOIs as clickable links but don't print
+    # them in the bibliography text. These are just as valid for verification.
+    if pdf_hyperlink_dois:
+        text_doi_set = set(dois)
+        merged_count = 0
+        for hdoi in pdf_hyperlink_dois:
+            if hdoi not in text_doi_set:
+                dois.append(hdoi)
+                text_doi_set.add(hdoi)
+                merged_count += 1
+        if merged_count > 0:
+            print(f"   [Citations] Merged {merged_count} DOI(s) from PDF hyperlink annotations.",
+                  flush=True)
+        # Re-apply the global cap after merging
+        dois = dois[:MAX_DOIS]
     flagged_items = []
 
     if not dois:
@@ -538,19 +545,13 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         unreachable_count = verification.get("unreachable", 0)
         checked_count = verification["checked"]
 
-        # Fair score: exclude unreachable from calculation
-        # Score = verified / (verified + not_found) * 10
+        # Fair score: exclude unreachable from calculation.
+        # Continuous linear scale — verified / scorable * 10. Avoids step-function
+        # fairness cliffs (e.g. 0.49 → 5.0 vs 0.50 → 7.0).
         scorable = verified_count + not_found_count
         if scorable > 0:
             ratio = verified_count / scorable
-            if ratio >= 0.8:
-                ref_score = 10.0
-            elif ratio >= 0.5:
-                ref_score = 7.0
-            elif ratio >= 0.3:
-                ref_score = 5.0
-            else:
-                ref_score = 3.0
+            ref_score = round(ratio * 10.0, 1)
         elif unreachable_count > 0 and checked_count > 0:
             # All references unreachable — neutral fallback
             ref_score = 7.0
@@ -599,10 +600,15 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
                 ref_score = min(ref_score + 1.0, 10.0)
 
         # Citation recency scoring
-        recency = _score_citation_recency(ref_lines)
+        recency = _score_citation_recency(ref_lines, paper_year)
         issues.append(recency["recency_note"])
         # Blend: 80% DOI/title score + 20% recency score
         ref_score = round(0.80 * ref_score + 0.20 * recency["recency_score"], 1)
+
+        # No-DOI penalty: cap citation score at 6.0/10 when zero DOIs are present.
+        # Papers without verifiable DOIs should not score higher than "adequate"
+        # on citations, regardless of title-match or recency performance.
+        ref_score = min(ref_score, 6.0)
 
         return {
             "score": ref_score,
@@ -651,8 +657,17 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
         if not any(doi in line for doi in verified_dois)
     ]
 
-    # Cap the title-fallback sample at MAX_TITLE_FALLBACK (5).
-    title_sample = uncovered_refs[:MAX_TITLE_FALLBACK]
+    # Cap the title-fallback sample at MAX_TITLE_FALLBACK (5), spread
+    # proportionally across the full uncovered list so we sample from the
+    # whole bibliography, not just the first five entries.
+    N = len(uncovered_refs)
+    if N <= MAX_TITLE_FALLBACK:
+        title_sample = uncovered_refs
+    else:
+        title_sample = [
+            uncovered_refs[int(i * N / MAX_TITLE_FALLBACK)]
+            for i in range(MAX_TITLE_FALLBACK)
+        ]
 
     # Run capped Semantic Scholar title checks in parallel.
     verified_titles_count = 0
@@ -727,7 +742,7 @@ def check_citations(references_text: str, full_text: str = "") -> dict:
                     pass
 
     # ── Citation recency ──────────────────────────────────────────────────────
-    recency = _score_citation_recency(ref_lines)
+    recency = _score_citation_recency(ref_lines, paper_year)
 
     # If every signal we tried was unreachable, return a neutral score.
     total_attempts = len(dois) + checked_titles

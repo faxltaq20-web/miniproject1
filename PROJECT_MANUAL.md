@@ -211,11 +211,6 @@ graph TD
 
 #### Functions List
 ---
-##### `clean_json_text(text)`
-* **Signature**: `def clean_json_text(text: str) -> str`
-* **Purpose**: Cleans JSON strings returned by LLMs.
-* **Logic**: Strips markdown envelope formatting (` ```json ... ``` `).
----
 ##### `_parse_retry_delay(err_str)`
 * **Signature**: `def _parse_retry_delay(err_str: str) -> float`
 * **Purpose**: Dynamic backoff extraction.
@@ -258,7 +253,6 @@ A dual-mode reference credibility check pipeline utilizing CrossRef DOI validati
 * **Constants**:
   * `MAX_DOIS = 20`: Prevents excessive external API querying.
   * `DOI_PATTERN`: Regex matching strict DOI patterns with required prefixes.
-  * `AUTHOR_YEAR_PATTERN`: Regex matching in-text citation keys.
 
 ```mermaid
 graph TD
@@ -279,11 +273,6 @@ graph TD
 * **Signature**: `def _extract_dois(references_text: str) -> list`
 * **Purpose**: Extracts up to 20 unique DOIs.
 * **Logic**: Runs `DOI_PATTERN` regex, cleans trailing punctuation (junk), deduplicates, and limits results to `MAX_DOIS`.
----
-##### `_extract_author_year_refs(text)`
-* **Signature**: `def _extract_author_year_refs(text: str) -> list`
-* **Purpose**: Extracts in-text author year patterns.
-* **Logic**: Matches `AUTHOR_YEAR_PATTERN` and returns a list of matched pairs.
 ---
 ##### `_detect_duplicates(references_text)`
 * **Signature**: `def _detect_duplicates(references_text: str) -> list`

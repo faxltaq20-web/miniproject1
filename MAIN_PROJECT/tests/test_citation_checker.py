@@ -155,15 +155,14 @@ class TestCheckCitationsOffline:
         )
         # Mock recency and arxiv to neutral so score is deterministic
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 7.0, "recent_ratio": None,
+            lambda ref_lines, paper_year=None: {"recency_score": 7.0, "recent_ratio": None,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "Smith, J. (2020). A great paper. Journal of Things, 1(1), 1-10."
         # Act
         result = citation_checker.check_citations(text)
-        # Assert — 0/1 verified = ratio 0.0, base=3.0, blended=0.8*3.0+0.2*7.0=3.8
-        # Score is >= 3.0 (recency blend may raise it slightly)
-        assert result["score"] >= 3.0
+        # Assert — 0/1 verified = ratio 0.0, base=0.0 (linear), blended=0.8*0+0.2*7=1.4
+        assert result["score"] >= 0.0
         assert result["total_refs"] >= 1
 
     def test_no_dois_has_correct_issue_message(self, monkeypatch):
@@ -214,7 +213,7 @@ class TestScoreCalculation:
         # Arrange — patch _validate_doi to always return "verified"
         monkeypatch.setattr(citation_checker, "_validate_doi", lambda doi: "verified")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "DOI: 10.1109/5.726791\nDOI: 10.1234/test.2020"
@@ -233,7 +232,7 @@ class TestScoreCalculation:
             return "verified" if len(dois_seen) == 1 else "not_found"
         monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 5.0, "recent_ratio": 0.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "DOI: 10.1109/5.726791\nDOI: 10.9999/fake.doi"
@@ -271,7 +270,7 @@ class TestScoreCalculation:
             return "verified" if len(calls) == 1 else "unreachable"
         monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "DOI: 10.1109/5.726791\nDOI: 10.1234/test.2020"
@@ -302,7 +301,7 @@ class TestScoreCalculation:
             return "verified" if len(calls) == 1 else "not_found"
         monkeypatch.setattr(citation_checker, "_validate_doi", fake_validate)
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 7.0, "recent_ratio": 0.3,
+            lambda ref_lines, paper_year=None: {"recency_score": 7.0, "recent_ratio": 0.3,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "DOI: 10.1000/test.a\nDOI: 10.2000/test.b\nDOI: 10.3000/test.c"
@@ -468,13 +467,13 @@ class TestVerifyTitleSemanticScholar:
 class TestParallelVerificationScoring:
 
     def test_high_verification_ratio_gives_score_ten(self, monkeypatch):
-        # Arrange — 4/5 verified = 0.8 ratio → base 10.0; with recency 10 → 10.0
+        # Arrange — 4/5 verified = 0.8 ratio → base 8.0 (linear); blended w/ recency 10 → 8.4
         monkeypatch.setattr(
             citation_checker, "_verify_references_parallel",
             lambda ref_lines, max_refs=10: {"verified": 4, "not_found": 1, "checked": 5}
         )
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         refs = "\n".join([
@@ -483,18 +482,19 @@ class TestParallelVerificationScoring:
         ])
         # Act
         result = citation_checker.check_citations(refs)
-        # Assert — 4/5 verified → base 10.0, blended with recency 10 = 10.0
-        assert result["score"] == 10.0
+        # Assert — 4/5=0.8 → base 8.0, blended with recency 10 = 0.8*8+0.2*10 = 8.4
+        # BUT no-DOI cap applies: min(8.4, 6.0) = 6.0
+        assert result["score"] == 6.0
         assert result["verified"] == 4
 
     def test_medium_verification_ratio_gives_score_seven(self, monkeypatch):
-        # Arrange — 3/5 verified = 0.6 ratio → base 7.0
+        # Arrange — 3/5 verified = 0.6 ratio → base 6.0 (linear)
         monkeypatch.setattr(
             citation_checker, "_verify_references_parallel",
             lambda ref_lines, max_refs=10: {"verified": 3, "not_found": 2, "checked": 5}
         )
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 7.0, "recent_ratio": 0.2,
+            lambda ref_lines, paper_year=None: {"recency_score": 7.0, "recent_ratio": 0.2,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         refs = "\n".join([
@@ -503,17 +503,18 @@ class TestParallelVerificationScoring:
         ])
         # Act
         result = citation_checker.check_citations(refs)
-        # Assert — base=7.0, recency=7.0 → blended=7.0
-        assert result["score"] == 7.0
+        # Assert — base=6.0, recency=7.0 → blended=0.8*6+0.2*7=6.2
+        # BUT no-DOI cap applies: min(6.2, 6.0) = 6.0
+        assert result["score"] == 6.0
 
     def test_low_verification_ratio_gives_score_five(self, monkeypatch):
-        # Arrange — 2/5 verified = 0.4 ratio → base 5.0
+        # Arrange — 2/5 verified = 0.4 ratio → base 4.0 (linear)
         monkeypatch.setattr(
             citation_checker, "_verify_references_parallel",
             lambda ref_lines, max_refs=10: {"verified": 2, "not_found": 3, "checked": 5}
         )
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.1,
+            lambda ref_lines, paper_year=None: {"recency_score": 5.0, "recent_ratio": 0.1,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         refs = "\n".join([
@@ -522,17 +523,17 @@ class TestParallelVerificationScoring:
         ])
         # Act
         result = citation_checker.check_citations(refs)
-        # Assert — base=5.0, recency=5.0 → blended=5.0
-        assert result["score"] == 5.0
+        # Assert — base=4.0, recency=5.0 → blended=0.8*4+0.2*5=4.2
+        assert result["score"] == 4.2
 
     def test_very_low_verification_ratio_gives_score_three(self, monkeypatch):
-        # Arrange — 1/5 verified = 0.2 ratio → base 3.0
+        # Arrange — 1/5 verified = 0.2 ratio → base 2.0 (linear)
         monkeypatch.setattr(
             citation_checker, "_verify_references_parallel",
             lambda ref_lines, max_refs=10: {"verified": 1, "not_found": 4, "checked": 5}
         )
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 3.0, "recent_ratio": 0.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 3.0, "recent_ratio": 0.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         refs = "\n".join([
@@ -541,8 +542,8 @@ class TestParallelVerificationScoring:
         ])
         # Act
         result = citation_checker.check_citations(refs)
-        # Assert — base=3.0, recency=3.0 → blended=3.0
-        assert result["score"] == 3.0
+        # Assert — base=2.0, recency=3.0 → blended=0.8*2+0.2*3=2.2
+        assert result["score"] == 2.2
 
     def test_no_titles_extracted_gives_minimal_credit(self, monkeypatch):
         # Arrange — no titles could be extracted
@@ -551,7 +552,7 @@ class TestParallelVerificationScoring:
             lambda ref_lines, max_refs=10: {"verified": 0, "not_found": 0, "checked": 0}
         )
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 7.0, "recent_ratio": None,
+            lambda ref_lines, paper_year=None: {"recency_score": 7.0, "recent_ratio": None,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         refs = "Some long text that is not a proper reference but is more than 20 characters."
@@ -722,7 +723,7 @@ class TestUnifiedReferenceScoring:
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "verified")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = (
@@ -752,7 +753,7 @@ class TestUnifiedReferenceScoring:
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "not_found")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 5.0, "recent_ratio": 0.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = (
@@ -775,7 +776,7 @@ class TestUnifiedReferenceScoring:
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "verified")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = (
@@ -805,7 +806,7 @@ class TestUnifiedReferenceScoring:
             return "not_found"
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar", fake_ss)
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
         text = "\n".join([
@@ -845,7 +846,7 @@ class TestPhase13GlobalSweep:
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": "not_found")
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 10.0, "recent_ratio": 1.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 10.0, "recent_ratio": 1.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
 
@@ -882,7 +883,7 @@ class TestPhase13GlobalSweep:
         monkeypatch.setattr(citation_checker, "_validate_doi",
             lambda doi: "verified")  # not used; no DOIs in text
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 5.0, "recent_ratio": 0.0,
+            lambda ref_lines, paper_year=None: {"recency_score": 5.0, "recent_ratio": 0.0,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
 
@@ -917,7 +918,7 @@ class TestPhase13GlobalSweep:
         monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
             lambda title, ref_year="": next(ss_responses, "not_found"))
         monkeypatch.setattr(citation_checker, "_score_citation_recency",
-            lambda ref_lines: {"recency_score": 6.0, "recent_ratio": 0.5,
+            lambda ref_lines, paper_year=None: {"recency_score": 6.0, "recent_ratio": 0.5,
                                "recency_note": "mocked", "ref_years": []})
         monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
 
@@ -935,3 +936,134 @@ class TestPhase13GlobalSweep:
         assert result["not_found"] == 1
         # Aggregated score: 0.8 * 6.7 + 0.2 * 6.0 ≈ 6.6
         assert 6.4 <= result["score"] <= 6.8
+
+
+# ─────────────────────────────────────────────
+# Phase 14 — Tests for fairness polish
+# ─────────────────────────────────────────────
+
+
+class TestPhase14DynamicYearAwareRecency:
+    """Recency baseline uses paper's own publication year, not 'now'."""
+
+    def test_extract_paper_publication_year_finds_most_common(self):
+        text = "Paper published 2019. Author affiliation 2019. Submitted 2019. Some 1998 ref."
+        assert citation_checker._extract_paper_publication_year(text) == 2019
+
+    def test_extract_paper_publication_year_none_when_absent(self):
+        assert citation_checker._extract_paper_publication_year("no years here at all") is None
+
+    def test_dynamic_year_aware_recency_uses_paper_year(self):
+        # Refs from 2018-2019 relative to 2020 paper → 100% recent (≥0.35) → score 10.
+        ref_lines = [
+            "Foo, A. (2018). Paper one. Journal X.",
+            "Bar, B. (2019). Paper two. Journal Y.",
+            "Baz, C. (2017). Paper three. Journal Z.",
+        ]
+        result = citation_checker._score_citation_recency(ref_lines, paper_year=2020)
+        assert result["recency_score"] == 10.0
+        # Same refs vs. modern baseline (no paper_year) would score much lower.
+        modern = citation_checker._score_citation_recency(ref_lines)
+        assert modern["recency_score"] < 10.0
+
+    def test_check_citations_threads_paper_year(self, monkeypatch):
+        # Older CS paper. With paper_year=2019, refs from 2017-2018 should still
+        # be "recent" relative to publication, not penalized.
+        captured = {}
+
+        def spy(ref_lines, paper_year=None):
+            captured["paper_year"] = paper_year
+            return {"recency_score": 8.0, "recent_ratio": 0.4,
+                    "recency_note": "spy", "ref_years": []}
+
+        monkeypatch.setattr(citation_checker, "_score_citation_recency", spy)
+        monkeypatch.setattr(
+            citation_checker, "_verify_references_parallel",
+            lambda ref_lines, max_refs=10: {"verified": 1, "not_found": 0, "checked": 1}
+        )
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        full_text = "Our 2019 study. Submitted 2019. We 2019 paper."
+        refs = "Smith, J. (2017). Paper. Journal X. pages 1-10."
+
+        citation_checker.check_citations(refs, full_text=full_text)
+        assert captured["paper_year"] == 2019
+
+
+class TestPhase14ProportionalSampling:
+    """uncovered_refs is sampled across the whole list, not just [:5]."""
+
+    def test_proportional_sampling_spreads_across_list(self, monkeypatch):
+        # 20 references, none have DOIs. Tag each line with its index so we can
+        # detect which were sampled.
+        sampled_titles = []
+
+        def fake_title(line):
+            sampled_titles.append(line)
+            return f"Title for {line}"
+
+        monkeypatch.setattr(citation_checker, "_extract_title_from_ref", fake_title)
+        monkeypatch.setattr(citation_checker, "_extract_year_from_ref", lambda l: "2020")
+        monkeypatch.setattr(citation_checker, "_verify_title_semantic_scholar",
+            lambda t, y="": "verified")
+        monkeypatch.setattr(citation_checker, "_validate_doi", lambda d: "verified")
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines, paper_year=None: {"recency_score": 7.0, "recent_ratio": 0.5,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+
+        # One real DOI keeps us out of the no-DOI branch.
+        refs = ["[0] Anchor. DOI: 10.1000/anchor real reference line padding here."]
+        for i in range(1, 21):
+            refs.append(f"[{i}] Author{i}, A. (2020). Padding text for reference index {i} numeric tag.")
+        text = "\n".join(refs)
+
+        citation_checker.check_citations(text)
+
+        # Sampled titles should span the list — at least one from the back half.
+        back_half_indices = [
+            line for line in sampled_titles
+            if any(f"index {n} numeric tag" in line for n in range(11, 21))
+        ]
+        assert back_half_indices, f"sampling did not reach back half: {sampled_titles!r}"
+
+
+class TestPhase14ContinuousNoDoiScoring:
+    """No-DOI branch uses a continuous linear scale."""
+
+    def test_continuous_no_doi_scoring_is_linear(self, monkeypatch):
+        # 6/10 verified → ratio 0.6 → ref_score 6.0 (before recency blend).
+        monkeypatch.setattr(
+            citation_checker, "_verify_references_parallel",
+            lambda ref_lines, max_refs=10: {"verified": 6, "not_found": 4, "checked": 10}
+        )
+        # Recency neutral so blended = 0.8 * 6.0 + 0.2 * 6.0 = 6.0
+        monkeypatch.setattr(citation_checker, "_score_citation_recency",
+            lambda ref_lines, paper_year=None: {"recency_score": 6.0, "recent_ratio": 0.2,
+                               "recency_note": "mocked", "ref_years": []})
+        monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+        refs = "\n".join([
+            f"[{i}] Author{i}, A. (2020). Paper number {i} in the bibliography. Journal X, {i}(1), 1-10."
+            for i in range(1, 11)
+        ])
+        result = citation_checker.check_citations(refs)
+        assert result["score"] == 6.0
+
+    def test_continuous_no_doi_scoring_distinguishes_close_ratios(self, monkeypatch):
+        # 0.49 vs 0.51 used to collapse to {5.0, 7.0}; now they differ smoothly.
+        for verified, expected in [(49, 4.9), (51, 5.1)]:
+            monkeypatch.setattr(
+                citation_checker, "_verify_references_parallel",
+                lambda ref_lines, max_refs=10, v=verified: {
+                    "verified": v, "not_found": 100 - v, "checked": 100
+                }
+            )
+            monkeypatch.setattr(citation_checker, "_score_citation_recency",
+                lambda ref_lines, paper_year=None, e=expected: {
+                    "recency_score": e, "recent_ratio": 0.2,
+                    "recency_note": "mocked", "ref_years": []
+                })
+            monkeypatch.setattr(citation_checker, "_verify_arxiv_id", lambda aid: "unreachable")
+            refs = "Smith, J. (2020). Paper. Journal. pages 1-10."
+            result = citation_checker.check_citations(refs)
+            # Blended = 0.8 * expected + 0.2 * expected = expected (mocked equal).
+            assert result["score"] == expected

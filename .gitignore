@@ -28,6 +28,10 @@ uploads/
 # Generated reports (temporary output)
 reports/
 
+# Analysis result cache (ephemeral — do not commit)
+MAIN_PROJECT/cache/
+cache/
+
 # IDE
 .vscode/
 .idea/
@@ -40,3 +44,5 @@ Thumbs.db
 # Graphify Cache
 graphify-out/cache/
 
+# Node (if any tooling is added)
+node_modules/

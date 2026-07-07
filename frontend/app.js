@@ -2,7 +2,65 @@
    RESEARCHSENSE CLIENT ORCHESTRATION & API CONNECTIONS (JS)
    ------------------------------------------------------------- */
 
-const BACKEND_URL = "http://localhost:8000";
+// Dynamic backend URL resolution:
+//   - Served by FastAPI (production or local uvicorn) → same origin, no hardcode needed
+//   - Opened as raw file:// (legacy local dev)        → fallback to localhost:8000
+const BACKEND_URL = (window.location.protocol === "file:" || window.location.origin === "null")
+    ? "http://127.0.0.1:8000"
+    : window.location.origin;
+
+const DISCIPLINE_WEIGHTS = {
+    "computer_science": {
+        "structure_sections": 0.20,
+        "clarity_writing":    0.225,
+        "methodology_rigor":  0.225,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    },
+    "mathematics": {
+        "structure_sections": 0.15,
+        "clarity_writing":    0.15,
+        "methodology_rigor":  0.175,
+        "evidence_claims":    0.375,
+        "citations":          0.15
+    },
+    "physics": {
+        "structure_sections": 0.175,
+        "clarity_writing":    0.20,
+        "methodology_rigor":  0.275,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    },
+    "chemistry": {
+        "structure_sections": 0.175,
+        "clarity_writing":    0.20,
+        "methodology_rigor":  0.275,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    },
+    "medicine_biology": {
+        "structure_sections": 0.175,
+        "clarity_writing":    0.15,
+        "methodology_rigor":  0.325,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    },
+    "humanities_social": {
+        "structure_sections": 0.175,
+        "clarity_writing":    0.325,
+        "methodology_rigor":  0.15,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    },
+    "other": {
+        "structure_sections": 0.20,
+        "clarity_writing":    0.225,
+        "methodology_rigor":  0.225,
+        "evidence_claims":    0.20,
+        "citations":          0.15
+    }
+};
+
 
 // Global storage for current paper's analysis response
 let currentAnalysisData = null;
@@ -30,34 +88,59 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // -------------------------------------------------------------
-// 1. Pre-Flight Diagnostics Check (GET /health)
+// 1. Pre-Flight Diagnostics Check (GET /health) — with cold-start polling
 // -------------------------------------------------------------
 async function checkBackendHealth() {
     const badge = document.getElementById("diagnosticsBadge");
     const text = document.getElementById("diagnosticsText");
     const dot = badge.querySelector(".status-dot");
 
-    try {
-        const response = await fetch(`${BACKEND_URL}/health`, { method: "GET" });
-        if (!response.ok) throw new Error("Status degraded");
-        
-        const health = await response.json();
-        
-        if (health.status === "healthy") {
-            dot.className = "status-dot healthy";
-            text.textContent = "System: Healthy";
-            badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
-        } else {
-            dot.className = "status-dot degraded";
-            text.textContent = "System: Degraded";
-            badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+    const MAX_WAIT_MS = 60000;   // 60s max (Render free-tier cold start)
+    const POLL_INTERVAL = 3000;  // retry every 3s
+    const startTime = Date.now();
+    let attempt = 0;
+
+    while (Date.now() - startTime < MAX_WAIT_MS) {
+        attempt++;
+        try {
+            const response = await fetch(`${BACKEND_URL}/health`, {
+                method: "GET",
+                signal: AbortSignal.timeout(5000)   // 5s per attempt
+            });
+
+            if (response.ok) {
+                const health = await response.json();
+                if (health.status === "healthy") {
+                    dot.className = "status-dot healthy";
+                    text.textContent = "System: Healthy";
+                    badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                } else {
+                    dot.className = "status-dot degraded";
+                    text.textContent = "System: Degraded — some services unavailable";
+                    badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+                }
+                return;   // success — stop polling
+            }
+        } catch (_) {
+            // Network error or timeout — server still waking
         }
-    } catch (e) {
-        dot.className = "status-dot error";
-        text.textContent = "System: Offline";
-        badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+
+        // Still waking — update badge with countdown
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        const remaining = Math.max(0, 60 - elapsed);
+        dot.className = "status-dot animate-pulse";
+        text.textContent = `Server waking up... (${remaining}s)`;
+        badge.style.borderColor = "rgba(139, 92, 246, 0.3)";
+
+        await new Promise(r => setTimeout(r, POLL_INTERVAL));
     }
+
+    // Timed out after 60s
+    dot.className = "status-dot error";
+    text.textContent = "System: Offline — server unreachable";
+    badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
 }
+
 
 // -------------------------------------------------------------
 // 2. Drag & Drop Upload Zone Setup
@@ -380,12 +463,15 @@ function populateDashboardView(data) {
     accordionContainer.innerHTML = "";
 
     const activeLayers = [
-        { key: "structure_sections", label: "Structure & Sections", num: "01", weight: "20%" },
-        { key: "clarity_writing",    label: "Clarity & Writing",    num: "02", weight: "25%" },
-        { key: "methodology_rigor",  label: "Methodology Rigor",    num: "03", weight: "25%" },
-        { key: "evidence_claims",    label: "Evidence & Claims",    num: "04", weight: "20%" },
-        { key: "citations",          label: "Citations & References", num: "05", weight: "10%" }
+        { key: "structure_sections", label: "Structure & Sections", num: "01" },
+        { key: "clarity_writing",    label: "Clarity & Writing",    num: "02" },
+        { key: "methodology_rigor",  label: "Methodology Rigor",    num: "03" },
+        { key: "evidence_claims",    label: "Evidence & Claims",    num: "04" },
+        { key: "citations",          label: "Citations & References", num: "05" }
     ];
+
+    const resolvedDiscipline = data.discipline || "computer_science";
+    const weights = DISCIPLINE_WEIGHTS[resolvedDiscipline] || DISCIPLINE_WEIGHTS["computer_science"];
 
     activeLayers.forEach(layer => {
         const detail = data.layer_details[layer.key] || { score: 0.0, issues: [], suggestions: [] };
@@ -398,11 +484,20 @@ function populateDashboardView(data) {
             card.classList.toggle("open");
         });
 
-        // Layer thematic color by score
+        // Use authoritative max marks from API (avoids JS/Python rounding divergence).
+        // Fall back to local Math.round only when layer_max_marks is absent (demo mode).
+        const weightVal = weights[layer.key] !== undefined ? weights[layer.key] : 0.20;
+        const max_m = (data.layer_max_marks && data.layer_max_marks[layer.key] !== undefined)
+            ? data.layer_max_marks[layer.key]
+            : Math.round(weightVal * 100);
+        const rawScore = detail.score || 0.0;
+        const earned = Math.round((rawScore * max_m) / 10);
+
+        // Layer thematic color by score percentage (consistent with report_generator _bar_color)
+        const pct = rawScore / 10;
         let layerColor = "var(--accent-danger)";
-        if (detail.score >= 8.5) layerColor = "var(--accent-success)";
-        else if (detail.score >= 7.0) layerColor = "var(--accent-success)";
-        else if (detail.score >= 5.5) layerColor = "var(--accent-warning)";
+        if (pct >= 0.80) layerColor = "var(--accent-success)";
+        else if (pct >= 0.60) layerColor = "var(--accent-warning)";
 
         // Card Header
         const header = document.createElement("div");
@@ -427,12 +522,12 @@ function populateDashboardView(data) {
 
         const weightSpan = document.createElement("span");
         weightSpan.className = "layer-weight";
-        weightSpan.textContent = layer.weight;
+        weightSpan.textContent = `${max_m}%`;
         
         const scoreSpan = document.createElement("span");
         scoreSpan.className = "layer-score font-mono";
         scoreSpan.style.color = layerColor;
-        scoreSpan.textContent = `${detail.score.toFixed(1)} / 10`;
+        scoreSpan.textContent = `${earned} / ${max_m}`;
         
         const chevron = document.createElement("span");
         chevron.className = "layer-chevron";
@@ -774,6 +869,14 @@ function triggerDemoMode() {
         },
         "final_score": 77.0,
         "grade": "B — Good",
+        "discipline": "computer_science",
+        "layer_max_marks": {
+            "structure_sections": 20,
+            "clarity_writing":    22,
+            "methodology_rigor":  22,
+            "evidence_claims":    20,
+            "citations":          15
+        },
         "citation_result": {
             "total_refs": 8,
             "verified": 6,

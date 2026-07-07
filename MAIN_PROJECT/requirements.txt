@@ -1,8 +1,12 @@
-google-genai
-pymupdf4llm
-fastapi
-uvicorn
-python-multipart
-reportlab
-requests
-python-dotenv
+# ResearchSense Backend Dependencies
+# Pin versions for reproducible cloud builds (Render, Railway, etc.)
+
+google-genai>=1.0.0
+pymupdf4llm>=0.0.17
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+reportlab>=4.2.0
+requests>=2.32.0
+python-dotenv>=1.0.0
+aiofiles>=24.1.0

@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 960" width="800" height="960" style="background-color:#ffffff;">
+  <!-- Definitions for Markers (Arrowheads) -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#000000" />
+    </marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#000000" />
+    </marker>
+  </defs>
+
+  <!-- Title of the Diagram -->
+  <text x="400" y="35" text-anchor="middle" font-family="'Times New Roman', Times, serif" font-size="18px" font-weight="bold" fill="#000000">
+    ResearchSense — System Architecture Diagram
+  </text>
+  
+  <!-- 1. User Browser -->
+  <rect x="300" y="60" width="200" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="82" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">User (Browser)</text>
+  <text x="400" y="98" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Uploads PDF &amp; Views Dashboard</text>
+
+  <!-- Arrow User -> Web Interface -->
+  <line x1="400" y1="115" x2="400" y2="155" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="140" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">1. Uploads PDF</text>
+
+  <!-- 2. Web Interface -->
+  <rect x="270" y="155" width="260" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="177" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Web Interface (app.js)</text>
+  <text x="400" y="193" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Dark-mode frontend dashboard</text>
+
+  <!-- Arrow Web Interface -> Backend Server -->
+  <line x1="400" y1="210" x2="400" y2="250" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="235" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">2. Forward request</text>
+
+  <!-- 3. Backend Server -->
+  <rect x="270" y="250" width="260" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="272" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Backend Server (main.py)</text>
+  <text x="400" y="288" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">FastAPI server orchestration</text>
+
+  <!-- Arrow Backend Server -> PDF Parser -->
+  <line x1="400" y1="305" x2="400" y2="375" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="340" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">3. Start analysis &amp; text extraction</text>
+
+  <!-- Dashed boundary: Backend Processing Pipeline -->
+  <rect x="150" y="355" width="500" height="495" fill="none" stroke="#555555" stroke-width="1.5" stroke-dasharray="6,4" />
+  <text x="170" y="375" font-family="'Times New Roman', Times, serif" font-size="13px" font-weight="bold" font-style="italic" fill="#555555">Backend Processing Pipeline</text>
+
+  <!-- 4. PDF Parser -->
+  <rect x="240" y="395" width="320" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="417" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">PDF Parser (pdf_parser.py)</text>
+  <text x="400" y="433" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Extracts structured text via pymupdf4llm</text>
+
+  <!-- Arrow PDF Parser -> Gemini API -->
+  <line x1="400" y1="450" x2="400" y2="490" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="475" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">4. Extracted text</text>
+
+  <!-- 5. Gemini API -->
+  <rect x="240" y="490" width="320" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="512" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Gemini API (gemini_analyzer.py)</text>
+  <text x="400" y="528" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Performs LLM-based analysis &amp; validation</text>
+
+  <!-- Arrow Gemini API -> Scoring Module -->
+  <line x1="400" y1="545" x2="400" y2="585" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="570" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">5. Raw analysis metadata</text>
+
+  <!-- 6. Scoring Module -->
+  <rect x="240" y="585" width="320" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="607" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Scoring Module (scoring.py)</text>
+  <text x="400" y="623" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Computes research quality grades &amp; weighted scores</text>
+
+  <!-- Arrow Scoring Module -> Citation Checker -->
+  <line x1="400" y1="640" x2="400" y2="680" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="665" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">6. Quality metrics &amp; criteria</text>
+
+  <!-- 7. Citation Checker -->
+  <rect x="240" y="680" width="320" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="702" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Citation Checker (citation_checker.py)</text>
+  <text x="400" y="718" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Verifies reference DOIs &amp; titles via APIs</text>
+
+  <!-- Arrow Citation Checker -> Report Generator -->
+  <line x1="400" y1="735" x2="400" y2="775" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="412" y="760" font-family="'Times New Roman', Times, serif" font-size="12px" fill="#000000">7. Validated citations &amp; references</text>
+
+  <!-- 8. Report Generator -->
+  <rect x="230" y="775" width="340" height="55" rx="4" ry="4" fill="#fcfcfc" stroke="#000000" stroke-width="1.5" />
+  <text x="400" y="797" font-family="'Times New Roman', Times, serif" font-size="14px" font-weight="bold" text-anchor="middle" fill="#000000">Report Generator (report_generator.py)</text>
+  <text x="400" y="813" font-family="'Times New Roman', Times, serif" font-size="11px" text-anchor="middle" fill="#555555">Assembles structured PDF report via ReportLab</text>
+
+  <!-- Return Path flow -->
+  <!-- 1. Line down from Report Generator bottom center -->
+  <line x1="400" y1="830" x2="400" y2="895" stroke="#000000" stroke-width="1.5" />
+  <!-- 2. Line left to X=80 -->
+  <line x1="400" y1="895" x2="80" y2="895" stroke="#000000" stroke-width="1.5" />
+  <!-- 3. Line up to Y=182.5 (middle of Web Interface box) -->
+  <line x1="80" y1="895" x2="80" y2="182.5" stroke="#000000" stroke-width="1.5" />
+  <!-- 4. Line right to Web Interface left border (X=270) -->
+  <line x1="80" y1="182.5" x2="270" y2="182.5" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow-return)" />
+
+  <!-- Horizontal Label above the return path -->
+  <text x="95" y="885" font-family="'Times New Roman', Times, serif" font-size="12px" font-weight="bold" fill="#000000">
+    8. Return PDF Report (Delivered via Dashboard)
+  </text>
+</svg>

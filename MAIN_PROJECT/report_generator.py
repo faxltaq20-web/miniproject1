@@ -26,6 +26,7 @@ from reportlab.platypus import (
 
 # Use the failover-capable LLM client from gemini_analyzer
 from gemini_analyzer import _call_llm_with_failover
+import scoring
 import html as _html
 
 
@@ -45,11 +46,8 @@ def _sanitize(text: str) -> str:
 
 
 def _sanitize_and_truncate(text: str, max_len: int = 135) -> str:
-    """Sanitize text and truncate to max_len characters with '...' suffix."""
-    text = _sanitize(text)
-    if len(text) > max_len:
-        return text[:max_len] + '...'
-    return text
+    """Sanitize text. Truncation is disabled to ensure full comments are shown in the PDF."""
+    return _sanitize(text)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -79,13 +77,16 @@ MARGIN_B = 16 * mm   # bottom (space for footer)
 AVAIL_W  = W - 2 * MARGIN_H
 COL_W    = (AVAIL_W - 5 * mm) / 2
 
-# Max marks per parameter (must match scoring.py WEIGHTS * 100)
+# Max marks per parameter — fallback used only when discipline is unknown.
+# Values are int(round(weight * 100)) for the default CS discipline.
+# NOTE: Python round() uses banker's rounding: round(22.5) = 22, not 23.
+# Keep in sync with scoring.py DISCIPLINE_WEIGHTS["computer_science"].
 MAX_MARKS = {
     "structure_sections": 20,
-    "clarity_writing":    25,
-    "methodology_rigor":  25,
+    "clarity_writing":    22,   # round(0.225 * 100) = round(22.5) = 22
+    "methodology_rigor":  22,   # round(0.225 * 100) = 22
     "evidence_claims":    20,
-    "citations":          10,
+    "citations":          15,
 }
 
 PARAM_LABELS = {
@@ -667,49 +668,102 @@ def _build_citation_section(citation_data):
     flowables.append(stats_table)
     flowables.append(Spacer(1, 3 * mm))
 
-    # Flagged items with categories
+    # Citation detail table — verified summary + flagged items
     flagged_items = citation_data.get('flagged_items', [])
-    if flagged_items:
-        flag_rows = []
-        CATEGORY_COLORS = {
-            'duplicate': HexColor('#F59E0B'),   # amber
-            'not_found': HexColor('#EF4444'),   # red
-            'missing':   HexColor('#8B5CF6'),   # purple
-        }
-        CATEGORY_LABELS = {
-            'duplicate': 'Duplicate',
-            'not_found': 'Not found',
-            'missing':   'Missing',
-        }
-        for item in flagged_items:
-            cat = item.get('category', 'not_found')
-            color = CATEGORY_COLORS.get(cat, C_DANGER)
-            label = CATEGORY_LABELS.get(cat, cat.title())
-            flag_rows.append([
-                Paragraph(f'<font color="{color.hexval()}">\u26a0</font>',
-                          S('d', fontSize=9)),
-                Paragraph(
-                    f'<b>{_sanitize(item.get("citation", "Unknown"))}</b>',
-                    S('dc', fontSize=9)),
-                Paragraph(
-                    f'<b><font color="{color.hexval()}" size=7>{_sanitize(label)}</font></b>'
-                    f' <font size=7 color="#64748B">\u00b7 {_sanitize(item.get("detail", ""))}</font>',
-                    S('ds', fontSize=8)),
-            ])
+    flagged_dois  = citation_data.get('flagged_dois', [])
 
-        flag_table = Table(flag_rows,
-            colWidths=[8 * mm, 45 * mm, AVAIL_W - 53 * mm],
+    table_rows = []
+
+    CATEGORY_COLORS = {
+        'duplicate': HexColor('#F59E0B'),   # amber
+        'not_found': HexColor('#EF4444'),   # red
+        'missing':   HexColor('#8B5CF6'),   # purple
+    }
+    CATEGORY_LABELS = {
+        'duplicate': 'Duplicate',
+        'not_found': 'Not found',
+        'missing':   'Missing',
+    }
+
+    # ── Verified summary row (mirrors web dashboard) ──────────────
+    if verified > 0:
+        v_label = f'{verified} citation{"s" if verified > 1 else ""} verified'
+        method  = 'CrossRef DOI + Semantic Scholar'
+        detail  = (
+            f'{verified} citation{"s" if verified > 1 else ""} '
+            'successfully matched in reference libraries.'
+        )
+        table_rows.append([
+            Paragraph(
+                f'<font color="{C_SUCCESS.hexval()}">&#10003;</font>',
+                S('vi', fontSize=11)),
+            Paragraph(f'<b>{v_label}</b>', S('vc', fontSize=9)),
+            Paragraph(
+                f'<b><font color="{C_SUCCESS.hexval()}" size=7>VERIFIED</font></b>'
+                f' <font size=7 color="#64748B">&#183; {method}</font>',
+                S('vs', fontSize=8)),
+            Paragraph(
+                f'<font size=7 color="#64748B">{_sanitize(detail)}</font>',
+                S('vd', fontSize=8)),
+        ])
+
+    # ── Flagged items ─────────────────────────────────────────────
+    for item in flagged_items:
+        cat   = item.get('category', 'not_found')
+        color = CATEGORY_COLORS.get(cat, C_DANGER)
+        label = CATEGORY_LABELS.get(cat, cat.title())
+        table_rows.append([
+            Paragraph(f'<font color="{color.hexval()}">&#9888;</font>',
+                      S('d', fontSize=9)),
+            Paragraph(
+                f'<b>{_sanitize(item.get("citation", "Unknown"))}</b>',
+                S('dc', fontSize=9)),
+            Paragraph(
+                f'<b><font color="{color.hexval()}" size=7>{_sanitize(label)}</font></b>'
+                f' <font size=7 color="#64748B">&#183; {_sanitize(item.get("detail", ""))}</font>',
+                S('ds', fontSize=8)),
+            Paragraph('', S('dd', fontSize=8)),
+        ])
+
+    # ── Flagged DOIs ──────────────────────────────────────────────
+    for doi in flagged_dois:
+        table_rows.append([
+            Paragraph(f'<font color="{C_DANGER.hexval()}">&#9888;</font>',
+                      S('fd', fontSize=9)),
+            Paragraph(
+                f'<font face="Courier" size=8>{_sanitize(doi)}</font>',
+                S('fdc', fontSize=8)),
+            Paragraph(
+                f'<b><font color="{C_DANGER.hexval()}" size=7>INVALID DOI</font></b>'
+                f' <font size=7 color="#64748B">&#183; CrossRef API</font>',
+                S('fds', fontSize=8)),
+            Paragraph(
+                '<font size=7 color="#64748B">DOI record could not be located in registry.</font>',
+                S('fdd', fontSize=8)),
+        ])
+
+    if table_rows:
+        col_widths = [8 * mm, 52 * mm, 55 * mm, AVAIL_W - 115 * mm]
+        ref_table = Table(table_rows, colWidths=col_widths,
             style=TableStyle([
                 ('BACKGROUND',    (0, 0), (-1, -1), C_LIGHT),
                 ('LINEBELOW',     (0, 0), (-1, -2), 0.5, HexColor('#DDE8FF')),
                 ('BOX',           (0, 0), (-1, -1), 0.5, HexColor('#C7D8FF')),
                 ('LEFTPADDING',   (0, 0), (-1, -1), 10),
-                ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
                 ('TOPPADDING',    (0, 0), (-1, -1), 7),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
                 ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+                # Highlight the verified row with a green left accent
+                ('LINEABOVE',     (0, 0), (-1, 0),  2, C_SUCCESS),
             ]))
-        flowables.append(flag_table)
+        flowables.append(ref_table)
+    elif total_refs > 0:
+        # References exist but nothing to flag and nothing verified
+        flowables.append(Paragraph(
+            'All references were unreachable during validation — network may be throttled.',
+            S('body', fontSize=9, textColor=C_MUTED),
+        ))
 
     return flowables
 
@@ -823,6 +877,7 @@ def _build_story(report_data):
 # Public API (called by main.py)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# <<<< SCREENSHOT THIS FUNCTION for Fig 7.2.4 >>>>
 def generate_pdf_report(
     filename: str,
     layer_scores: dict,
@@ -832,6 +887,7 @@ def generate_pdf_report(
     citation_result: dict,
     detected_sections: dict = None,
     verdict_text: str = None,
+    discipline: str = None,
 ) -> io.BytesIO:
     """
     Build the full themed PDF report and return as in-memory BytesIO buffer.
@@ -850,17 +906,19 @@ def generate_pdf_report(
     status = recommendation.replace("Recommendation: ", "")
 
     # Use pre-generated verdict if provided, otherwise generate via LLM
-    if verdict_text:
-        verdict_text = verdict_text
-    else:
+    if not verdict_text:
         verdict_text = _generate_verdict_paragraph(
             final_score, grade, layer_scores, layer_details,
         )
 
-    # Build parameter list (converted from raw 0\u201310 scores to earned/max marks)
+    # Build parameter list (converted from raw 0-10 scores to earned/max marks).
+    # Determine dynamic max marks based on actual discipline weights.
+    weights = scoring.DISCIPLINE_WEIGHTS.get(discipline, scoring.WEIGHTS)
+    actual_max_marks = {k: int(round(w * 100)) for k, w in weights.items()}
+
     parameters = []
     for key in PARAM_ORDER:
-        max_m = MAX_MARKS[key]
+        max_m = actual_max_marks.get(key, MAX_MARKS[key])
         raw = layer_scores.get(key, 0.0)
         earned = round(raw * max_m / 10)
         details = layer_details.get(key, {})
@@ -891,6 +949,7 @@ def generate_pdf_report(
             'unverified':    citation_result.get('not_found', 0)
                              + citation_result.get('unreachable', 0),
             'flagged_items': citation_result.get('flagged_items', []),
+            'flagged_dois':  citation_result.get('flagged_dois', []),
         },
         'verdict_text':     verdict_text,
         'recommendation':   status,

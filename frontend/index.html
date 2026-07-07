@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +8,18 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap"
+        rel="stylesheet">
     <!-- Links to CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- Main Container -->
     <div class="app-container">
-        
+
         <!-- Header -->
         <header class="app-header">
             <div class="header-brand">
@@ -32,37 +36,41 @@
         <div id="uploadView" class="view-state active">
             <div class="upload-hero">
                 <h2>AI-Powered Academic Review Instrument</h2>
-                <p>Upload a research paper PDF for deep multi-dimensional quality analysis and reference credibility checks.</p>
+                <p>Upload a research paper PDF for deep multi-dimensional quality analysis and reference credibility
+                    checks.</p>
             </div>
 
             <!-- Upload Dropzone -->
             <div class="drop-zone" id="dropZone">
                 <input type="file" id="fileInput" accept=".pdf" hidden>
                 <div class="drop-zone-content">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="drop-icon" aria-hidden="true">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                        <polyline points="10 9 9 9 8 9"/>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" class="drop-icon" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
                     </svg>
                     <p class="drop-text">Drag & drop your research paper PDF here</p>
                     <span class="drop-or">or</span>
-                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse
+                        Files</button>
                 </div>
             </div>
 
             <!-- Try Demo Quick Action -->
             <div class="demo-trigger-container">
                 <span class="demo-text">Want to test without using API keys?</span>
-                <button class="btn btn-link" id="demoBtn" onclick="triggerDemoMode()">Try Pre-Cached Sample Paper</button>
+                <button class="btn btn-link" id="demoBtn" onclick="triggerDemoMode()">Try Pre-Cached Sample
+                    Paper</button>
             </div>
 
             <!-- Stepper Loader (Hidden by default) -->
             <div class="stepper-container" id="stepperContainer">
                 <h3>Analyzing Research Paper...</h3>
                 <p class="stepper-subtext">Executing deep evaluation layers. This may take 10-20 seconds.</p>
-                
+
                 <ol class="stepper" id="stepper">
                     <li class="step" id="step1">
                         <span class="step-icon">○</span>
@@ -105,7 +113,7 @@
 
         <!-- View 2: Analytics Dashboard -->
         <div id="dashboardView" class="view-state">
-            
+
             <!-- Dashboard Top Meta Row -->
             <div class="dashboard-bar">
                 <button class="btn btn-secondary" onclick="resetUploadView()">
@@ -119,23 +127,27 @@
 
             <!-- Grid Layout -->
             <div class="dashboard-grid">
-                
+
                 <!-- Left Rail: Main Scores & Reviews -->
                 <div class="grid-main">
-                    
+
                     <!-- Score Hero Section -->
                     <div class="dashboard-hero-card">
                         <div class="hero-left">
                             <!-- Circular SVG Gauge -->
                             <div class="score-circle-container">
                                 <svg class="score-gauge" viewBox="0 0 200 200">
-                                    <circle class="gauge-bg" cx="100" cy="100" r="80" fill="none" stroke-width="14"></circle>
-                                    <circle class="gauge-fill" id="gaugeCircle" cx="100" cy="100" r="80" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="502" stroke-dashoffset="502" transform="rotate(-90 100 100)"></circle>
-                                    <text class="gauge-score font-data" x="100" y="102" text-anchor="middle" id="gaugeScoreText">0</text>
+                                    <circle class="gauge-bg" cx="100" cy="100" r="80" fill="none" stroke-width="14">
+                                    </circle>
+                                    <circle class="gauge-fill" id="gaugeCircle" cx="100" cy="100" r="80" fill="none"
+                                        stroke-width="14" stroke-linecap="round" stroke-dasharray="502"
+                                        stroke-dashoffset="502" transform="rotate(-90 100 100)"></circle>
+                                    <text class="gauge-score font-data" x="100" y="102" text-anchor="middle"
+                                        id="gaugeScoreText">0</text>
                                     <text class="gauge-score-label" x="100" y="130" text-anchor="middle">OVERALL</text>
                                 </svg>
                             </div>
-                            
+
                             <!-- Grade and recommendation panel -->
                             <div class="hero-labels">
                                 <div class="grade-badge" id="gradeBadge">B — Good</div>
@@ -163,7 +175,7 @@
 
                 <!-- Right Rail: Verdict & Citations -->
                 <div class="grid-side">
-                    
+
                     <!-- Overall Qualitative Verdict -->
                     <div class="side-card verdict-card">
                         <div class="side-card-header">
@@ -251,4 +263,5 @@
     <!-- Links to JS -->
     <script src="app.js"></script>
 </body>
+
 </html>

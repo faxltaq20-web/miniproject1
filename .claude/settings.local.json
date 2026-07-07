@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(gsd-execute-phase)",
+      "Bash(python -m pytest MAIN_PROJECT/tests/test_citation_checker.py --co -q)",
+      "Bash(python -m pytest MAIN_PROJECT/tests/ -q)"
+    ]
+  }
+}

@@ -16,6 +16,7 @@
 | [Phase 11: Improve the frontend UI](#phase-11-improve-the-frontend-ui) | Improve the frontend UI layout, interactive dashboard widgets, styling, and user experience |
 | [Phase 12: Improve citation detection](#phase-12-improve-citation-detection) | Improve citation detection |
 | [Phase 13: Refine citation verification logic](#phase-13-refine-citation-verification-logic) | Refine citation verification logic |
+| [Phase 14: Web Application Deployment](#phase-14-web-application-deployment) | Convert ResearchSense into a fully deployable web app — FastAPI serves the frontend, dynamic URL resolution, Render deployment config, cold-start UX |
 
 ### Phase 5: Gemini 7-Layer AI Analysis Engine
 
@@ -400,3 +401,34 @@ Plans:
 Plans:
 
 - [/] Plan 1: Design and implement UI/UX improvements for the frontend dashboard
+
+---
+
+## Phase 14: Web Application Deployment
+
+**Goal:** Convert ResearchSense from a locally-run Python script into a fully deployable web application accessible via a public URL — FastAPI serves both the API and the frontend, with cloud deployment configured for Render.
+
+**Depends on:** Phase 13 (all pipeline and UI features complete)
+
+**Requirements Mapped:**
+
+- DEPLOY-01: FastAPI serves frontend via StaticFiles (no separate static host needed)
+- DEPLOY-02: Dynamic BACKEND_URL in app.js — no localhost hardcoding in production
+- DEPLOY-03: Cold-start UX for Render free-tier (health polling with countdown)
+- DEPLOY-04: Procfile and render.yaml for one-click cloud deployment
+- DEPLOY-05: Deployment guide (DEPLOY.md) documenting end-to-end setup
+
+**Success Criteria:**
+
+1. `http://localhost:8000` serves the full frontend (not just the API JSON root)
+2. `BACKEND_URL` dynamically resolves to same-origin in production — no localhost hardcode
+3. A `Procfile` and `render.yaml` exist at project root / MAIN_PROJECT with correct start commands
+4. All 124 tests pass after the changes
+5. Cold-start health poll retries up to 60s with live countdown in the diagnostics badge
+6. `DEPLOY.md` documents full Render deployment steps
+
+**Plans:** 1 plan
+
+Plans:
+
+- [x] Plan 1: StaticFiles mount, dynamic URL, Procfile, render.yaml, DEPLOY.md, cold-start UX (completed 2026-07-07)
