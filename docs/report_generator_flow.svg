@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" style="background-color:#ffffff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#0284c7" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#cbd5e1" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="800" height="60" fill="#0f172a" />
+  <text x="400" y="37" text-anchor="middle" font-family="sans-serif" font-size="16px" font-weight="bold" fill="#ffffff">report_generator.py — PLATYPUS Hybrid Layout Engine</text>
+  
+  <rect x="100" y="90" width="600" height="60" rx="4" ry="4" fill="#eff6ff" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <text x="400" y="118" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">Input: Consolidated Analysis JSON Payload</text>
+  <text x="400" y="135" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Contains layer scores, details, citations summaries, verdict, and discipline</text>
+  
+  <line x1="400" y1="150" x2="400" y2="200" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <path d="M 400 200 L 220 200 L 220 230" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 400 200 L 580 200 L 580 230" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="30" y="230" width="380" height="90" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="220" y="255" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">1. Canvas Callbacks (Background Layout)</text>
+  <text x="220" y="275" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">draw_cover(): Full-bleed cover page layout</text>
+  <text x="220" y="287" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">(navy base, low-alpha geometry, top gradients)</text>
+  <text x="220" y="299" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">draw_footer(): Dynamic page numbers &amp; footer string</text>
+  
+  <rect x="430" y="230" width="340" height="90" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="600" y="255" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">2. PLATYPUS Flowable Story Builder</text>
+  <text x="600" y="275" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Sequentially appends elements to document story:</text>
+  <text x="600" y="287" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">- ScoreHero overall card, Section pills grid table</text>
+  <text x="600" y="299" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">- 2-column parameter scorecards, citations tables, VerdictCard</text>
+  
+  <path d="M 220 320 L 220 360 L 400 360" fill="none" stroke="#0284c7" stroke-width="2" />
+  <path d="M 580 320 L 580 360 L 400 360" fill="none" stroke="#0284c7" stroke-width="2" />
+  <line x1="400" y1="360" x2="400" y2="390" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="150" y="390" width="500" height="60" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="400" y="418" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">3. Build BaseDocTemplate</text>
+  <text x="400" y="435" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Sets margins, cover &amp; content templates, coordinates PageTemplates</text>
+  
+  <line x1="400" y1="450" x2="400" y2="490" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="100" y="490" width="600" height="60" rx="4" ry="4" fill="#ecfdf5" stroke="#10b981" stroke-width="2" filter="url(#shadow)" />
+  <text x="400" y="518" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">Output: In-Memory BytesIO PDF Buffer</text>
+  <text x="400" y="535" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Streams compiled report binary directly back to FastAPI /report endpoint</text>
+</svg>

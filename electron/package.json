@@ -1,0 +1,67 @@
+{
+  "name": "researchsense",
+  "version": "1.0.0",
+  "description": "AI-powered academic paper review instrument",
+  "author": "ResearchSense",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.researchsense.app",
+    "productName": "ResearchSense",
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "../dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "ResearchSense.exe"
+    },
+    "extraResources": [
+      {
+        "from": "../MAIN_PROJECT",
+        "to": "MAIN_PROJECT",
+        "filter": [
+          "**/*",
+          "!__pycache__/**",
+          "!**/__pycache__/**",
+          "!*.pyc",
+          "!cache/**",
+          "!**/cache/**",
+          "!tests/**",
+          "!debug/**",
+          "!dev/**",
+          "!*.pdf"
+        ]
+      },
+      {
+        "from": "../frontend",
+        "to": "frontend"
+      },
+      {
+        "from": "../venv",
+        "to": "venv",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/tests/**",
+          "!**/test/**",
+          "!Lib/site-packages/pip/**",
+          "!Lib/site-packages/setuptools/**",
+          "!Lib/site-packages/wheel/**",
+          "!Lib/site-packages/*.dist-info/RECORD"
+        ]
+      }
+    ]
+  }
+}

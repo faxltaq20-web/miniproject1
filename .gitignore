@@ -1,7 +1,14 @@
-# Environment variables - NEVER commit API keys
+# Node (if any tooling is added)
+node_modules/
+electron/node_modules/
+dist/
+dist.rar
+*.exe
+!.env.example
 .env
 .env.*
-!.env.example
+**/.env
+**/.env.*
 
 # Python
 __pycache__/
@@ -43,6 +50,12 @@ Thumbs.db
 
 # Graphify Cache
 graphify-out/cache/
+
+# Exclude large exported archives and desktop shortcuts
+EXPORT/
+EXPORT.rar
+*.rar
+*.lnk
 
 # Node (if any tooling is added)
 node_modules/

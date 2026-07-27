@@ -2,65 +2,55 @@
    RESEARCHSENSE CLIENT ORCHESTRATION & API CONNECTIONS (JS)
    ------------------------------------------------------------- */
 
-// Dynamic backend URL resolution:
-//   - Served by FastAPI (production or local uvicorn) → same origin, no hardcode needed
-//   - Opened as raw file:// (legacy local dev)        → fallback to localhost:8000
-const BACKEND_URL = (window.location.protocol === "file:" || window.location.origin === "null")
-    ? "http://127.0.0.1:8000"
-    : window.location.origin;
+// Backend URL: always the current origin. Electron and web deploys both load
+// the frontend via FastAPI, so origin resolution is unambiguous.
+const BACKEND_URL = window.location.origin;
 
-const DISCIPLINE_WEIGHTS = {
-    "computer_science": {
-        "structure_sections": 0.20,
-        "clarity_writing":    0.225,
-        "methodology_rigor":  0.225,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    },
-    "mathematics": {
-        "structure_sections": 0.15,
-        "clarity_writing":    0.15,
-        "methodology_rigor":  0.175,
-        "evidence_claims":    0.375,
-        "citations":          0.15
-    },
-    "physics": {
-        "structure_sections": 0.175,
-        "clarity_writing":    0.20,
-        "methodology_rigor":  0.275,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    },
-    "chemistry": {
-        "structure_sections": 0.175,
-        "clarity_writing":    0.20,
-        "methodology_rigor":  0.275,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    },
-    "medicine_biology": {
-        "structure_sections": 0.175,
-        "clarity_writing":    0.15,
-        "methodology_rigor":  0.325,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    },
-    "humanities_social": {
-        "structure_sections": 0.175,
-        "clarity_writing":    0.325,
-        "methodology_rigor":  0.15,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    },
-    "other": {
-        "structure_sections": 0.20,
-        "clarity_writing":    0.225,
-        "methodology_rigor":  0.225,
-        "evidence_claims":    0.20,
-        "citations":          0.15
-    }
+// ── Electron Custom Titlebar ────────────────────────────────
+(function initTitlebar() {
+    if (!window.electronAPI) return; // not in Electron — skip
+    const controls = document.getElementById('titlebarControls');
+    if (controls) controls.style.display = 'flex';
+
+    const btnMin   = document.getElementById('tbMin');
+    const btnMax   = document.getElementById('tbMax');
+    const btnClose = document.getElementById('tbClose');
+
+    if (btnMin)   btnMin.addEventListener('click',   () => window.electronAPI.minimize());
+    if (btnMax)   btnMax.addEventListener('click',   () => window.electronAPI.maximize());
+    if (btnClose) btnClose.addEventListener('click', () => window.electronAPI.close());
+})();
+
+
+// Discipline weights come from the /analyze response as `layer_max_marks`
+// (already rounded ints in Python — no drift risk). This fallback only
+// applies to the offline demo mode, which explicitly uses CS weights.
+const DEFAULT_MAX_MARKS = {
+    structure_sections: 20,
+    clarity_writing:    22,
+    methodology_rigor:  22,
+    evidence_claims:    20,
+    citations:          15,
 };
 
+
+// Flatten FastAPI/HTTPException error payloads into a single readable line.
+// Handles: {error, message}, {detail: "str"}, {detail: {error, message}},
+// {detail: [{msg, loc}]} (Pydantic validation errors), or unknown shapes.
+function extractErrorMessage(payload) {
+    if (!payload || typeof payload !== "object") return "";
+    if (typeof payload.error === "string") return payload.error;
+    if (typeof payload.message === "string") return payload.message;
+    const d = payload.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d) && d.length) {
+        return d.map(x => x?.msg || x?.message || JSON.stringify(x)).join("; ");
+    }
+    if (d && typeof d === "object") {
+        return d.message || d.error || JSON.stringify(d);
+    }
+    return "";
+}
 
 // Global storage for current paper's analysis response
 let currentAnalysisData = null;
@@ -202,8 +192,16 @@ function handleUploadedFile(file) {
 
 // -------------------------------------------------------------
 // 3. Custom Slide-in Toast Notifications
+//    - Queued so back-to-back calls don't clobber each other
+//    - Manually dismissible via the × button (or auto-dismiss after 4s)
 // -------------------------------------------------------------
-function showToastNotification(message, isSuccess = false) {
+const _toastQueue = [];
+let _toastActive = false;
+let _toastTimer = null;
+
+function _renderNextToast() {
+    if (_toastActive || _toastQueue.length === 0) return;
+    const { message, isSuccess } = _toastQueue.shift();
     const toast = document.getElementById("toastNotification");
     const icon = document.getElementById("toastIcon");
     const msg = document.getElementById("toastMsg");
@@ -212,12 +210,33 @@ function showToastNotification(message, isSuccess = false) {
     toast.style.borderLeftColor = isSuccess ? "var(--accent-success)" : "var(--accent-danger)";
     msg.textContent = message;
 
+    _toastActive = true;
     toast.classList.add("show");
 
-    setTimeout(() => {
-        toast.classList.remove("show");
-    }, 4000);
+    _toastTimer = setTimeout(_dismissToast, 4000);
 }
+
+function _dismissToast() {
+    const toast = document.getElementById("toastNotification");
+    toast.classList.remove("show");
+    if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+    // Wait for slide-out transition (0.4s) before showing the next one
+    setTimeout(() => {
+        _toastActive = false;
+        _renderNextToast();
+    }, 450);
+}
+
+function showToastNotification(message, isSuccess = false) {
+    _toastQueue.push({ message, isSuccess });
+    _renderNextToast();
+}
+
+// Wire the close button once at load
+document.addEventListener("DOMContentLoaded", () => {
+    const closeBtn = document.getElementById("toastClose");
+    if (closeBtn) closeBtn.addEventListener("click", _dismissToast);
+});
 
 // -------------------------------------------------------------
 // 4. Stepper Progress Stage Controller
@@ -313,8 +332,8 @@ async function runLivePaperAnalysis(file) {
         clearInterval(progressTimer);
 
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || err.message || "Failed analyzing document");
+            const err = await response.json().catch(() => ({}));
+            throw new Error(extractErrorMessage(err) || `Analysis failed (HTTP ${response.status})`);
         }
 
         const data = await response.json();
@@ -392,27 +411,20 @@ function populateDashboardView(data) {
     const rec = document.getElementById("recBadge");
     badge.textContent = data.grade;
 
-    // Grade-letter-based recommendation mapping
+    // Grade-letter-based recommendation mapping. Grade badge color/gradient
+    // is fully driven by the `.grade-{a..f}` CSS class — no inline overrides.
+    // Recommendation pill still needs inline color since it has no dedicated CSS.
     const gradeLetter = data.grade ? data.grade.charAt(0).toUpperCase() : "F";
-    let colorClass = "var(--accent-danger)";
-    let recText = "NOT READY FOR SUBMISSION";
-
-
-    if (gradeLetter === "A" || gradeLetter === "B") {
-        colorClass = "var(--accent-success)";
-        recText = "RECOMMENDED FOR JOURNAL SUBMISSION";
-    } else if (gradeLetter === "C") {
-        colorClass = "var(--accent-warning)";
-        recText = "MINOR REVISIONS REQUIRED";
-    } else if (gradeLetter === "D") {
-        colorClass = "var(--accent-danger)";
-        recText = "SIGNIFICANT REVISIONS REQUIRED";
-    }
-
-    badge.style.color = colorClass;
-    rec.style.color = colorClass;
-    rec.style.backgroundColor = `rgba(${colorClass === "var(--accent-success)" ? "16, 185, 129" : colorClass === "var(--accent-warning)" ? "245, 158, 11" : "239, 68, 68"}, 0.12)`;
-    rec.textContent = recText;
+    const recStyles = {
+        A: { color: "var(--accent-success)", bg: "rgba(16, 185, 129, 0.12)", text: "RECOMMENDED FOR JOURNAL SUBMISSION" },
+        B: { color: "var(--accent-success)", bg: "rgba(16, 185, 129, 0.12)", text: "RECOMMENDED FOR JOURNAL SUBMISSION" },
+        C: { color: "var(--accent-warning)", bg: "rgba(245, 158, 11, 0.12)", text: "MINOR REVISIONS REQUIRED" },
+        D: { color: "var(--accent-danger)",  bg: "rgba(239, 68, 68, 0.12)",  text: "SIGNIFICANT REVISIONS REQUIRED" },
+    };
+    const s = recStyles[gradeLetter] || { color: "var(--accent-danger)", bg: "rgba(239, 68, 68, 0.12)", text: "NOT READY FOR SUBMISSION" };
+    rec.style.color = s.color;
+    rec.style.backgroundColor = s.bg;
+    rec.textContent = s.text;
 
     // Grade badge class for CSS color-coding
     badge.classList.remove("grade-a", "grade-b", "grade-c", "grade-d", "grade-f");
@@ -470,26 +482,34 @@ function populateDashboardView(data) {
         { key: "citations",          label: "Citations & References", num: "05" }
     ];
 
-    const resolvedDiscipline = data.discipline || "computer_science";
-    const weights = DISCIPLINE_WEIGHTS[resolvedDiscipline] || DISCIPLINE_WEIGHTS["computer_science"];
-
     activeLayers.forEach(layer => {
         const detail = data.layer_details[layer.key] || { score: 0.0, issues: [], suggestions: [] };
-        
+
         const card = document.createElement("div");
         card.className = "layer-card";
-        
-        // Expand/Collapse onclick binding
-        card.addEventListener("click", () => {
-            card.classList.toggle("open");
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-expanded", "false");
+        card.setAttribute("aria-label", `${layer.label} — expand to view issues and recommendations`);
+
+        // Expand/Collapse — click and keyboard (Enter/Space)
+        const toggleCard = () => {
+            const opened = card.classList.toggle("open");
+            card.setAttribute("aria-expanded", String(opened));
+        };
+        card.addEventListener("click", toggleCard);
+        card.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggleCard();
+            }
         });
 
-        // Use authoritative max marks from API (avoids JS/Python rounding divergence).
-        // Fall back to local Math.round only when layer_max_marks is absent (demo mode).
-        const weightVal = weights[layer.key] !== undefined ? weights[layer.key] : 0.20;
+        // Authoritative max marks come from the /analyze response so JS never
+        // needs to replicate Python's discipline weight math.
         const max_m = (data.layer_max_marks && data.layer_max_marks[layer.key] !== undefined)
             ? data.layer_max_marks[layer.key]
-            : Math.round(weightVal * 100);
+            : (DEFAULT_MAX_MARKS[layer.key] || 20);
         const rawScore = detail.score || 0.0;
         const earned = Math.round((rawScore * max_m) / 10);
 
@@ -688,18 +708,39 @@ function populateDashboardView(data) {
             col2.textContent = "CrossRef API";
             row.appendChild(col2);
 
-            // Col 3: Status badging
+            // Col 3: Status badging — flagged_dois only contains DOIs that
+            // returned no CrossRef record after successful query
             const col3 = document.createElement("td");
-            col3.innerHTML = `<span class="ref-badge danger">INVALID DOI</span>`;
+            col3.innerHTML = `<span class="ref-badge danger">NOT FOUND</span>`;
             row.appendChild(col3);
 
             // Col 4: Impact details
             const col4 = document.createElement("td");
-            col4.textContent = "DOI record could not be located in registry.";
+            col4.textContent = "CrossRef returned no record for this DOI.";
             row.appendChild(col4);
 
             tableBody.appendChild(row);
         });
+
+        // Surface unreachable count so the summary number isn't unexplained.
+        if (cr.unreachable > 0) {
+            const row = document.createElement("tr");
+            const col1 = document.createElement("td");
+            col1.className = "ref-citation-entry";
+            col1.textContent = `${cr.unreachable} citation${cr.unreachable > 1 ? "s" : ""} unreachable`;
+            row.appendChild(col1);
+            const col2 = document.createElement("td");
+            col2.className = "font-mono";
+            col2.textContent = "CrossRef / Semantic Scholar";
+            row.appendChild(col2);
+            const col3 = document.createElement("td");
+            col3.innerHTML = `<span class="ref-badge warning">UNREACHABLE</span>`;
+            row.appendChild(col3);
+            const col4 = document.createElement("td");
+            col4.textContent = "Verification service timed out or errored — status unknown.";
+            row.appendChild(col4);
+            tableBody.appendChild(row);
+        }
 
         // Show verified count as summary row (real API data)
         if (cr.verified > 0) {
@@ -728,9 +769,13 @@ function populateDashboardView(data) {
         }
     }
 
-    // Score=0 failover — warn user if Gemini returned no score (likely quota exhausted)
-    if (data.final_score === 0.0) {
-        showToastNotification("⚠ Gemini returned a score of 0 — API quota may be exhausted. Try the sample demo.", false);
+    // Quota-exhausted heuristic: final score is 0 AND every Gemini-driven
+    // layer (i.e. non-citation) is also 0. A legitimately bad paper still
+    // varies per layer, so we shouldn't cry "quota" for real zero scores.
+    const geminiLayerKeys = ["structure_sections", "clarity_writing", "methodology_rigor", "evidence_claims"];
+    const allGeminiZero = geminiLayerKeys.every(k => (data.layer_scores?.[k] ?? 0) === 0);
+    if (data.final_score === 0.0 && allGeminiZero) {
+        showToastNotification("⚠ All Gemini layers returned 0 — API quota may be exhausted. Try the sample demo.", false);
     }
 }
 

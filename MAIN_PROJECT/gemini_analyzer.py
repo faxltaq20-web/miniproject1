@@ -16,6 +16,8 @@ import sys
 from dotenv import load_dotenv
 from pathlib import Path
 
+import scoring  # single source of truth for the valid-discipline set
+
 # Fix Windows CP1252 encoding for Unicode output (before any print calls)
 if sys.platform == "win32":
     try:
@@ -622,8 +624,7 @@ def analyze_paper(sections: dict) -> dict:
     # Phase 14 (P2): discipline classification surfaced for discipline-adaptive
     # weighting in scoring.py. Defaults to "computer_science" when missing.
     discipline = raw.get("discipline", "computer_science") if isinstance(raw, dict) else "computer_science"
-    if discipline not in {"computer_science", "physics", "mathematics",
-                          "medicine_biology", "chemistry", "humanities_social", "other"}:
+    if discipline not in scoring.DISCIPLINE_WEIGHTS:
         discipline = "computer_science"
 
     # Phase 14 (P5): calibrate the LLM's narrow 6-8 clustering before downstream

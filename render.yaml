@@ -13,22 +13,19 @@ services:
 
     envVars:
       # ── Gemini API Keys ─────────────────────────────────────────────
-      # Set these in the Render dashboard under Environment → Secret Files
-      # or paste values directly. NEVER hardcode real keys in this file.
+      # Every key is a secret — set actual values in the Render dashboard
+      # under Environment. Optional keys (2..5) can be left blank; the
+      # analyzer skips slots with no value.
       - key: GEMINI_KEY_1
-        sync: false    # marks it as a secret — set value in Render dashboard
-
+        sync: false
       - key: GEMINI_KEY_2
-        value: ""
-
+        sync: false
       - key: GEMINI_KEY_3
-        value: ""
-
+        sync: false
       - key: GEMINI_KEY_4
-        value: ""
-
+        sync: false
       - key: GEMINI_KEY_5
-        value: ""
+        sync: false
 
       # ── Model ────────────────────────────────────────────────────────
       - key: GEMINI_MODEL
@@ -41,6 +38,14 @@ services:
       # ── Analysis Result Cache ────────────────────────────────────────
       - key: CACHE_ENABLED
         value: "true"
+
+      # ── Upload limit (MB) ────────────────────────────────────────────
+      - key: MAX_UPLOAD_MB
+        value: "30"
+
+      # ── CORS allowlist (comma-separated origins, or "*" for dev) ─────
+      - key: ALLOWED_ORIGINS
+        value: "*"
 
       # ── Contact ──────────────────────────────────────────────────────
       - key: CONTACT_EMAIL

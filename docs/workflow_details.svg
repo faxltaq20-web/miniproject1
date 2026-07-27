@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1420" width="900" height="1420" style="background-color:#ffffff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#0284c7" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="3" dy="3" stdDeviation="2" flood-color="#cbd5e1" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+
+  <!-- Title Section -->
+  <rect x="0" y="0" width="900" height="70" fill="#0f172a" />
+  <text x="450" y="42" text-anchor="middle" font-family="'Segoe UI', Helvetica, sans-serif" font-size="20px" font-weight="bold" fill="#ffffff">
+    ResearchSense — Detailed End-to-End Analysis Workflow
+  </text>
+
+  <!-- STEP 1: PDF Upload -->
+  <rect x="250" y="100" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="112" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="126" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 1</text>
+  <text x="345" y="127" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">Client PDF Upload</text>
+  <text x="345" y="145" font-family="sans-serif" font-size="11px" fill="#475569">User drops paper.pdf into the UI dropzone (app.js)</text>
+  <text x="345" y="161" font-family="sans-serif" font-size="11px" fill="#475569">POST request dispatched as multipart Form Data</text>
+
+  <line x1="450" y1="180" x2="450" y2="230" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 2: Input Validation -->
+  <rect x="250" y="230" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="242" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="256" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 2</text>
+  <text x="345" y="257" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">FastAPI Validation &amp; Streaming</text>
+  <text x="345" y="275" font-family="sans-serif" font-size="11px" fill="#475569">main.py validates PDF suffix and streams chunks</text>
+  <text x="345" y="291" font-family="sans-serif" font-size="11px" fill="#475569">Aborts if file exceeds the 30MB safety limit</text>
+
+  <line x1="450" y1="310" x2="450" y2="360" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 3: Text Extraction -->
+  <rect x="250" y="360" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="372" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="386" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 3</text>
+  <text x="345" y="387" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">PDF Text &amp; DOI Extraction</text>
+  <text x="345" y="405" font-family="sans-serif" font-size="11px" fill="#475569">pdf_parser.py runs PyMuPDF4LLM for markdown formatting</text>
+  <text x="345" y="421" font-family="sans-serif" font-size="11px" fill="#475569">Extracts embedded hyperlink DOIs from annotations</text>
+
+  <line x1="450" y1="440" x2="450" y2="490" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 4: Section Segmentation -->
+  <rect x="250" y="490" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="502" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="516" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 4</text>
+  <text x="345" y="517" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">Two-Tier Section Detector</text>
+  <text x="345" y="535" font-family="sans-serif" font-size="11px" fill="#475569">section_detector.py splits text into standard keys</text>
+  <text x="345" y="551" font-family="sans-serif" font-size="11px" fill="#475569">Triggers Tier 2 Gemini heading mapping if headings non-standard</text>
+
+  <line x1="450" y1="570" x2="450" y2="620" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Split into Parallel Processing -->
+  <path d="M 450 620 L 450 640 L 220 640 L 220 670" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 450 620 L 450 640 L 680 640 L 680 670" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="450" y="635" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#475569">PARALLEL THREADS (asyncio.gather)</text>
+
+  <!-- STEP 5A: LLM Analysis -->
+  <rect x="30" y="670" width="380" height="95" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="45" y="682" width="70" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="80" y="696" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 5A</text>
+  <text x="125" y="697" font-family="sans-serif" font-size="13px" font-weight="bold" fill="#0f172a">LLM Qualitative Analysis</text>
+  <text x="125" y="713" font-family="sans-serif" font-size="10px" fill="#475569">- text_compressor.py shrinks tokens (light/aggr)</text>
+  <text x="125" y="727" font-family="sans-serif" font-size="10px" fill="#475569">- SHA-256 cache check (cache/ key hit/miss)</text>
+  <text x="125" y="741" font-family="sans-serif" font-size="10px" fill="#475569">- Gemini multi-key rotation calls (4 layers scored)</text>
+
+  <!-- STEP 5B: Citation Validation -->
+  <rect x="490" y="670" width="380" height="95" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="505" y="682" width="70" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="540" y="696" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 5B</text>
+  <text x="585" y="697" font-family="sans-serif" font-size="13px" font-weight="bold" fill="#0f172a">Reference Credibility telems</text>
+  <text x="585" y="713" font-family="sans-serif" font-size="10px" fill="#475569">- Concurrently check DOIs via CrossRef REST API</text>
+  <text x="585" y="727" font-family="sans-serif" font-size="10px" fill="#475569">- Fallback: Semantic Scholar title fuzzy matching</text>
+  <text x="585" y="741" font-family="sans-serif" font-size="10px" fill="#475569">- Parse ArXiv preprint IDs + check duplicate references</text>
+
+  <!-- Merge Parallel Processing -->
+  <path d="M 220 765 L 220 790 L 450 790 L 450 820" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 680 765 L 680 790 L 450 790 L 450 820" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 6: Scoring Engine -->
+  <rect x="250" y="820" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="832" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="846" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 6</text>
+  <text x="345" y="847" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">Discipline-Adaptive Scoring</text>
+  <text x="345" y="865" font-family="sans-serif" font-size="11px" fill="#475569">scoring.py maps layer scores to discipline weights</text>
+  <text x="345" y="881" font-family="sans-serif" font-size="11px" fill="#475569">Computes final 0-100 score and letter grade (A-F)</text>
+
+  <line x1="450" y1="900" x2="450" y2="950" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 7: Verdict Generation -->
+  <rect x="250" y="950" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="962" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="976" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 7</text>
+  <text x="345" y="977" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">Editorial Verdict Synthesis</text>
+  <text x="345" y="995" font-family="sans-serif" font-size="11px" fill="#475569">LLM parses lowest-scoring metrics to write verdict</text>
+  <text x="345" y="1011" font-family="sans-serif" font-size="11px" fill="#475569">Falls back to offline templates if keys hit rate-limits</text>
+
+  <line x1="450" y1="1030" x2="450" y2="1080" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 8: Renders Dashboard -->
+  <rect x="250" y="1080" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="1092" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="1106" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 8</text>
+  <text x="345" y="1107" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">Renders Dashboard UI</text>
+  <text x="345" y="1125" font-family="sans-serif" font-size="11px" fill="#475569">app.js binds JSON data to dashboard page elements</text>
+  <text x="345" y="1141" font-family="sans-serif" font-size="11px" fill="#475569">Animates score gauge, loads accordions and references</text>
+
+  <line x1="450" y1="1160" x2="450" y2="1210" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- STEP 9: Report Generation -->
+  <rect x="250" y="1210" width="400" height="80" rx="6" ry="6" fill="#f8fafc" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <rect x="265" y="1222" width="65" height="20" rx="3" ry="3" fill="#0284c7" />
+  <text x="297.5" y="1236" font-family="sans-serif" font-size="10px" font-weight="bold" text-anchor="middle" fill="#ffffff">STEP 9</text>
+  <text x="345" y="1237" font-family="sans-serif" font-size="14px" font-weight="bold" fill="#0f172a">ReportLab PDF Synthesis</text>
+  <text x="345" y="1255" font-family="sans-serif" font-size="11px" fill="#475569">POST /report triggers in-memory report synthesis</text>
+  <text x="345" y="1271" font-family="sans-serif" font-size="11px" fill="#475569">Streams compiled BytesIO PDF directly to browser</text>
+
+  <!-- Return Connection back to User (represented as border) -->
+  <path d="M 450 1290 L 450 1330 L 150 1330 L 150 140 L 250 140" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)" />
+  <text x="160" y="730" font-family="sans-serif" font-size="11px" font-weight="bold" fill="#0f172a" transform="rotate(-90 160 730)">LOOP COMPLETE: Return visual reports and downloads to browser</text>
+</svg>

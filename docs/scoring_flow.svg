@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="700" height="500" style="background-color:#ffffff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 10 5 L 0 8 z" fill="#0284c7" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#cbd5e1" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="700" height="60" fill="#0f172a" />
+  <text x="350" y="37" text-anchor="middle" font-family="sans-serif" font-size="16px" font-weight="bold" fill="#ffffff">scoring.py — Adaptive Weighted Grade Engine</text>
+  
+  <rect x="30" y="100" width="250" height="70" rx="4" ry="4" fill="#eff6ff" stroke="#0284c7" stroke-width="2" filter="url(#shadow)" />
+  <text x="155" y="128" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">1. Input Layer Scores</text>
+  <text x="155" y="145" font-family="sans-serif" font-size="9px" text-anchor="middle" fill="#475569">5 metric dimensions: scores (0-10)</text>
+  <text x="155" y="157" font-family="sans-serif" font-size="9px" text-anchor="middle" fill="#475569">Structure, Clarity, Method, Evidence, Citations</text>
+  
+  <line x1="280" y1="135" x2="320" y2="135" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="320" y="100" width="350" height="70" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="495" y="128" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">2. Discipline Weights Mapping</text>
+  <text x="495" y="145" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Resolves weights based on classified discipline</text>
+  <text x="495" y="157" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">(CS, Math, Physics, Bio/Med, Chem, Humanities)</text>
+  
+  <line x1="500" y1="170" x2="500" y2="220" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="200" y="220" width="400" height="70" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="400" y="248" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">3. Weighted Score Formula</text>
+  <text x="400" y="265" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Weighted Sum: raw = sum(scores[k] * weights[k])</text>
+  <text x="400" y="277" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">Final scaled: confidence_score = round(raw * 10, 1)</text>
+  
+  <line x1="400" y1="290" x2="400" y2="340" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="50" y="340" width="330" height="60" rx="4" ry="4" fill="#f8fafc" stroke="#1e293b" stroke-width="2" filter="url(#shadow)" />
+  <text x="215" y="368" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">4. Grade Lookup Thresholds</text>
+  <text x="215" y="385" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">A (>=85), B (>=70), C (>=55), D (>=40), F (&lt;40)</text>
+  
+  <line x1="380" y1="370" x2="420" y2="370" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <rect x="420" y="340" width="250" height="60" rx="4" ry="4" fill="#ecfdf5" stroke="#10b981" stroke-width="2" filter="url(#shadow)" />
+  <text x="545" y="368" font-family="sans-serif" font-size="13px" font-weight="bold" text-anchor="middle" fill="#0f172a">5. Response Payload</text>
+  <text x="545" y="385" font-family="sans-serif" font-size="10px" text-anchor="middle" fill="#475569">final_score, grade, weights, discipline</text>
+</svg>

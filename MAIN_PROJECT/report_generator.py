@@ -24,8 +24,10 @@ from reportlab.platypus import (
     Flowable, Paragraph, Spacer, Table, TableStyle, KeepTogether,
 )
 
-# Use the failover-capable LLM client from gemini_analyzer
-from gemini_analyzer import _call_llm_with_failover
+# Use the failover-capable LLM client from gemini_analyzer.
+# PARAM_LABELS is imported to keep a single source of truth (same dict lives
+# in gemini_analyzer.py).
+from gemini_analyzer import _call_llm_with_failover, PARAM_LABELS
 import scoring
 import html as _html
 
@@ -43,11 +45,6 @@ def _sanitize(text: str) -> str:
     # Escape HTML entities (< > & etc.)
     text = _html.escape(text, quote=False)
     return text
-
-
-def _sanitize_and_truncate(text: str, max_len: int = 135) -> str:
-    """Sanitize text. Truncation is disabled to ensure full comments are shown in the PDF."""
-    return _sanitize(text)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -77,25 +74,10 @@ MARGIN_B = 16 * mm   # bottom (space for footer)
 AVAIL_W  = W - 2 * MARGIN_H
 COL_W    = (AVAIL_W - 5 * mm) / 2
 
-# Max marks per parameter — fallback used only when discipline is unknown.
-# Values are int(round(weight * 100)) for the default CS discipline.
-# NOTE: Python round() uses banker's rounding: round(22.5) = 22, not 23.
-# Keep in sync with scoring.py DISCIPLINE_WEIGHTS["computer_science"].
-MAX_MARKS = {
-    "structure_sections": 20,
-    "clarity_writing":    22,   # round(0.225 * 100) = round(22.5) = 22
-    "methodology_rigor":  22,   # round(0.225 * 100) = 22
-    "evidence_claims":    20,
-    "citations":          15,
-}
-
-PARAM_LABELS = {
-    "structure_sections": "Structure & Sections",
-    "clarity_writing":    "Clarity & Writing",
-    "methodology_rigor":  "Methodology Rigor",
-    "evidence_claims":    "Evidence & Claims",
-    "citations":          "Citations & References",
-}
+# Max marks per parameter — derived from scoring.DISCIPLINE_WEIGHTS so we
+# have a single source of truth. Used only as a fallback when the caller
+# doesn't pass actual_max_marks (e.g. legacy tests).
+MAX_MARKS = {k: int(round(v * 100)) for k, v in scoring.WEIGHTS.items()}
 
 PARAM_ORDER = [
     "structure_sections", "clarity_writing", "methodology_rigor",
@@ -176,7 +158,7 @@ def _generate_verdict_paragraph(
     layer_details: dict,
 ) -> str:
     """
-    LLM writes a 2–3 sentence summary paragraph using the failover client.
+    LLM writes a 2-3 sentence summary paragraph using the failover client.
     Falls back to template if all providers are unavailable.
     """
     sorted_layers = sorted(layer_scores.items(), key=lambda x: x[1])
@@ -194,7 +176,7 @@ def _generate_verdict_paragraph(
         "You are writing a short verdict for an academic paper analysis report.\n"
         "Based on the scores below, write exactly 2-3 sentences summarising the paper's "
         "overall quality. Be specific, professional, and concise.\n"
-        "Do not repeat the grade or recommendation \u2014 those are shown separately.\n"
+        "Do not repeat the grade or recommendation — those are shown separately.\n"
         "Do not use bullet points. Plain prose only.\n\n"
         f"Final score: {final_score}/100 ({grade})\n"
         "Key issues found:\n" + "\n".join(f"- {i}" for i in top_issues)
@@ -553,7 +535,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for issue in issues:
         content.append(Paragraph(
             f'<font color="#EF4444" size=7><b>ISSUE:</b></font>  '
-            f'<font size=8 color="#64748B">{_sanitize_and_truncate(issue)}</font>',
+            f'<font size=8 color="#64748B">{_sanitize(issue)}</font>',
             S('issue', leading=11),
         ))
 
@@ -561,7 +543,7 @@ def _make_param_cell(name, score, total, issues, suggestions):
     for sug in suggestions:
         content.append(Paragraph(
             f'<font color="#10B981" size=7><b>FIX:</b></font>  '
-            f'<font size=8 color="#64748B">{_sanitize_and_truncate(sug)}</font>',
+            f'<font size=8 color="#64748B">{_sanitize(sug)}</font>',
             S('fix', leading=11),
         ))
 

@@ -20,15 +20,31 @@
     <!-- Main Container -->
     <div class="app-container">
 
-        <!-- Header -->
-        <header class="app-header">
+        <!-- Custom Titlebar (Electron frameless window) -->
+        <header class="app-header" id="appTitlebar">
             <div class="header-brand">
                 <span class="brand-logo">🧠</span>
                 <h1 class="brand-title">ResearchSense</h1>
             </div>
+
+            <div class="header-center-spacer"></div>
+
             <div class="header-diagnostics" id="diagnosticsBadge">
                 <span class="status-dot animate-pulse"></span>
                 <span class="status-text font-mono" id="diagnosticsText">Checking System...</span>
+            </div>
+
+            <!-- Custom Window Controls (only shown in Electron) -->
+            <div class="titlebar-controls" id="titlebarControls" style="display:none;">
+                <button class="tb-btn tb-min" id="tbMin" title="Minimize" aria-label="Minimize">
+                    <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1.5" rx="0.75" fill="currentColor"/></svg>
+                </button>
+                <button class="tb-btn tb-max" id="tbMax" title="Maximize" aria-label="Maximize/Restore">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                </button>
+                <button class="tb-btn tb-close" id="tbClose" title="Close" aria-label="Close">
+                    <svg width="10" height="10" viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
             </div>
         </header>
 
@@ -254,9 +270,10 @@
         </div>
 
         <!-- Custom Slide-in Toast Notifications -->
-        <div id="toastNotification" class="toast-toast">
+        <div id="toastNotification" class="toast-toast" role="alert" aria-live="polite">
             <span class="toast-icon" id="toastIcon">❌</span>
             <span class="toast-message" id="toastMsg">Error details...</span>
+            <button class="toast-close" id="toastClose" aria-label="Dismiss notification" title="Dismiss">×</button>
         </div>
     </div>
 

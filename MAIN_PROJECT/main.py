@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import tempfile
 import requests
@@ -6,6 +7,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -32,26 +35,75 @@ except ImportError:
 
 app = FastAPI(title="ResearchSense API", version="1.0.0")
 
-# Configure CORS middleware
+# Upload cap — reject PDFs larger than this before reading any bytes.
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_MB", "30")) * 1024 * 1024
+
+# CORS: comma-separated list in ALLOWED_ORIGINS, or "*" for local dev.
+# Same-origin (StaticFiles-served frontend) doesn't need CORS at all; this
+# only matters when the frontend is opened as a file:// or from a different host.
+_origins_env = os.getenv("ALLOWED_ORIGINS", "*").strip()
+_allowed_origins = ["*"] if _origins_env == "*" else [o.strip() for o in _origins_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-async def root():
-    """Health check endpoint."""
-    return {"status": "ResearchSense API is running"}
+
+# ── Payload models ────────────────────────────────────────────────────────
+class CitationResult(BaseModel):
+    total_refs: int = 0
+    verified: int = 0
+    not_found: int = 0
+    unreachable: int = 0
+    flagged_dois: List[str] = Field(default_factory=list)
+    flagged_items: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ReportPayload(BaseModel):
+    filename: str = "paper.pdf"
+    layer_scores: Dict[str, float] = Field(default_factory=dict)
+    layer_details: Dict[str, Any] = Field(default_factory=dict)
+    final_score: float = 0.0
+    grade: str = "F — Very Poor"
+    citation_result: CitationResult = Field(default_factory=CitationResult)
+    detected_sections: Dict[str, Any] = Field(default_factory=dict)
+    verdict_text: Optional[str] = None
+    discipline: Optional[str] = None
+
+
+_UNSAFE_FILENAME_CHARS = re.compile(r'[\r\n"\\/\x00-\x1f\x7f]')
+
+
+def _safe_download_name(filename: str) -> str:
+    """Strip control chars, quotes, path separators from a filename before
+    embedding it in a Content-Disposition header."""
+    base = os.path.basename(filename or "report")
+    base = _UNSAFE_FILENAME_CHARS.sub("_", base)
+    base = base.replace(".pdf", "").strip() or "report"
+    # Absolute max: 100 chars, letters/digits/dash/underscore/dot only.
+    return re.sub(r"[^A-Za-z0-9._-]", "_", base)[:100]
+
+def _probe(url: str) -> dict:
+    try:
+        requests.head(url, timeout=2)
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "unreachable"}
+
 
 @app.get("/health")
 async def health_check():
     """
     Lightweight health check — verifies server is running, keys are loaded,
     and external services are reachable. Does NOT burn Gemini API quota.
+
+    Overall status is driven only by what /analyze actually depends on:
+    Gemini keys must be loaded. CrossRef and Semantic Scholar are graceful
+    degradation paths — an outage there doesn't break analysis, so it must
+    not flip the badge to "degraded".
     """
-    # Check Gemini keys are loaded (no API call — just check config)
     gemini_keys_loaded = len(gemini_analyzer._clients)
     any_key_configured = gemini_keys_loaded > 0
 
@@ -61,26 +113,16 @@ async def health_check():
         "model": gemini_analyzer._MODEL,
     }
 
-    # Check CrossRef connectivity (quick HEAD, 2s timeout)
-    try:
-        requests.head("https://api.crossref.org/works/10.1000/test", timeout=2)
-        crossref_status = {"status": "ok"}
-    except Exception:
-        crossref_status = {"status": "unreachable"}
-
-    # Check Semantic Scholar connectivity (quick HEAD, 2s timeout)
-    try:
-        requests.head(
+    # Run external probes off the event loop so /health never blocks.
+    crossref_status, semantic_scholar_status = await asyncio.gather(
+        asyncio.to_thread(_probe, "https://api.crossref.org/works/10.1000/test"),
+        asyncio.to_thread(
+            _probe,
             "https://api.semanticscholar.org/graph/v1/paper/search?query=test&limit=1",
-            timeout=2,
-        )
-        semantic_scholar_status = {"status": "ok"}
-    except Exception:
-        semantic_scholar_status = {"status": "unreachable"}
+        ),
+    )
 
-    # Overall status — healthy if keys loaded and CrossRef reachable
-    is_healthy = any_key_configured and crossref_status["status"] == "ok"
-    overall_status = "healthy" if is_healthy else "degraded"
+    overall_status = "healthy" if any_key_configured else "degraded"
 
     return JSONResponse(content={
         "status": overall_status,
@@ -114,12 +156,31 @@ async def analyze_paper(file: UploadFile = File(...)):
             content={"error": "Only PDF files are accepted"}
         )
 
-    # Save uploaded file to a temporary file
+    # Save uploaded file to a temp file, streaming in 1 MB chunks so we
+    # never hold the entire body in RAM and can abort past MAX_UPLOAD_BYTES.
     tmp_file_path = ""
     try:
+        total = 0
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    tmp_file.close()
+                    try:
+                        os.remove(tmp_file.name)
+                    except Exception:
+                        pass
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "error": "File too large",
+                            "message": f"PDF exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
+                        },
+                    )
+                tmp_file.write(chunk)
             tmp_file_path = tmp_file.name
 
         # Extract plain text from PDF
@@ -226,34 +287,29 @@ async def analyze_paper(file: UploadFile = File(...)):
                 pass
 
 @app.post("/report")
-async def generate_report(analysis: dict):
+async def generate_report(analysis: ReportPayload):
     """
     Accept the full /analyze JSON response body and return a downloadable PDF.
     Does NOT re-run AI analysis or CrossRef validation.
     """
     try:
         buffer = report_generator.generate_pdf_report(
-            filename=analysis.get("filename", "paper.pdf"),
-            layer_scores=analysis.get("layer_scores", {}),
-            layer_details=analysis.get("layer_details", {}),
-            final_score=analysis.get("final_score", 0.0),
-            grade=analysis.get("grade", "F — Very Poor"),
-            citation_result=analysis.get("citation_result", {
-                "total_refs": 0, "verified": 0, "not_found": 0,
-                "unreachable": 0, "flagged_dois": [], "flagged_items": [],
-            }),
-            detected_sections=analysis.get("detected_sections", {}),
-            verdict_text=analysis.get("verdict_text", None),
-            discipline=analysis.get("discipline"),
+            filename=analysis.filename,
+            layer_scores=analysis.layer_scores,
+            layer_details=analysis.layer_details,
+            final_score=analysis.final_score,
+            grade=analysis.grade,
+            citation_result=analysis.citation_result.model_dump(),
+            detected_sections=analysis.detected_sections,
+            verdict_text=analysis.verdict_text,
+            discipline=analysis.discipline,
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "PDF generation failed", "message": str(e)}
-        )
+    except Exception:
+        # Do not leak internal exception details to clients.
+        raise HTTPException(status_code=500, detail="PDF generation failed")
 
     buffer.seek(0)
-    safe_name = analysis.get("filename", "report").replace(".pdf", "")
+    safe_name = _safe_download_name(analysis.filename)
     return StreamingResponse(
         buffer,
         media_type="application/pdf",

@@ -3,7 +3,24 @@
     "allow": [
       "Skill(gsd-execute-phase)",
       "Bash(python -m pytest MAIN_PROJECT/tests/test_citation_checker.py --co -q)",
-      "Bash(python -m pytest MAIN_PROJECT/tests/ -q)"
+      "Bash(python -m pytest MAIN_PROJECT/tests/ -q)",
+      "Bash(./electron/node_modules/.bin/asar extract-file *)",
+      "Read(//tmp/**)",
+      "Bash(node -e ' *)",
+      "Bash(git mv *)",
+      "Bash(python -m py_compile MAIN_PROJECT/gemini_analyzer.py MAIN_PROJECT/report_generator.py MAIN_PROJECT/main.py)",
+      "Bash(python -m pytest tests/ -x --tb=short)",
+      "Bash(node -c frontend/app.js)",
+      "Bash(npm run *)",
+      "Bash(\"../venv/Scripts/python.exe\" -c \"import main\")",
+      "Bash(cmd //c \"taskkill /F /IM ResearchSense.exe /T\")",
+      "Bash(cmd //c \"taskkill /F /IM python.exe\")",
+      "Bash(grep -c \"^\\\\`\\\\`\\\\`mermaid\" \"C:/Users/mohdf/mini project/docs/PROJECT_MANUAL_V2.md\")",
+      "Bash(mermaid\\\\|^## \\\\|^### \" \"C:/Users/mohdf/mini project/docs/PROJECT_MANUAL_V2.md\" | head -80)",
+      "Bash(grep -n \"^```mermaid\\\\|^## \\\\|^### \" \"C:/Users/mohdf/mini project/docs/PROJECT_MANUAL_V2.md\" | head -80)",
+      "Bash([ -e \"$SRC/$f\" ])",
+      "Bash(cp -r \"C:/Users/mohdf/mini project/frontend/.\" \"C:/Users/mohdf/mini project/EXPORT/frontend/\")",
+      "Bash(cp -r \"C:/Users/mohdf/mini project/electron/assets\" \"C:/Users/mohdf/mini project/EXPORT/electron/assets\")"
     ]
   }
 }
